@@ -14,13 +14,14 @@ const initSocket = (server) => {
       methods: ["GET", "POST"],
       credentials: true
     },
+    transports: ["websocket", "polling"],
   });
 
   // Global users tracking
   const users = {};
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("✅ User connected:", socket.id);
 
     handlePresence(io, socket, users);
     handleTyping(io, socket, users);
@@ -31,10 +32,11 @@ const initSocket = (server) => {
       for (let userId in users) {
         if (users[userId] === socket.id) {
           delete users[userId];
-          console.log(userId, "is offline");
+          console.log(`❌ ${userId} is offline`);
           break;
         }
       }
+      console.log("📊 Current online users:", Object.keys(users));
       io.emit("online-users", Object.keys(users));
     });
   });
