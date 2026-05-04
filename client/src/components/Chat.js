@@ -265,6 +265,26 @@ function Chat() {
     e.target.value = null; // Reset input
   };
 
+  const handleClearChat = () => {
+    if (!user || !selectedUser) return;
+
+    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}? This action cannot be undone locally.`)) {
+      setChatHistory(prev => {
+        const updatedHistory = { ...prev };
+        delete updatedHistory[selectedUser]; // Remove chat history for selected user
+        
+        // Save updated history to localStorage
+        if (user) {
+          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updatedHistory));
+        }
+        return updatedHistory;
+      });
+      setMessages([]); // Clear displayed messages
+      setSelectedUser(null); // Deselect the user after clearing chat
+      console.log(`🗑️ Chat history with ${selectedUser} cleared locally.`);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("user");
     navigate("/");
@@ -407,7 +427,12 @@ function Chat() {
             </div>
           </div>
 
-          <button onClick={logout}>Logout</button>
+          <div className="header-actions">
+            {selectedUser && ( // Only show clear chat button if a user is selected
+              <button onClick={handleClearChat} className="clear-chat-button">Clear Chat</button>
+            )}
+            <button onClick={logout}>Logout</button>
+          </div>
         </div>
 
         {/* MESSAGES */}

@@ -273,6 +273,18 @@ html, body, #root {
   transform: translateY(-1px);
 }
 
+.chat-header .header-actions {
+  display: flex;
+  gap: 10px; /* Space between buttons */
+  align-items: center;
+}
+
+.chat-header .clear-chat-button {
+  background: #ff9800; /* Orange for warning */
+}
+.chat-header .clear-chat-button:hover {
+  background: #fb8c00; /* Darker orange on hover */
+}
 /* Messages */
 .chat-messages {
   flex: 1;
@@ -611,6 +623,10 @@ html, body, #root {
   .chat-header button {
     padding: 6px 12px;
     font-size: 11px;
+  }
+  .chat-header .header-actions {
+    gap: 5px;
+    flex-wrap: wrap; /* Allow buttons to wrap on very small screens */
   }
 
   .chat-messages {
