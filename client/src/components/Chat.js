@@ -16,6 +16,7 @@ function Chat() {
   const [lastSeen, setLastSeen] = useState({});
   const [messages, setMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [unreadMessages, setUnreadMessages] = useState({}); // Track unread counts
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -39,13 +40,39 @@ function Chat() {
       }));
     });
 
+    // Listen for unread message updates from server
+    socket.on("unread-update", (unreadData) => {
+      console.log("📬 Unread messages updated:", unreadData);
+      setUnreadMessages(unreadData);
+    });
+
+    // Listen for incoming messages globally (even when not in the room)
+    const handleIncomingMessage = (msg) => {
+      console.log("📨 Incoming message:", msg);
+      
+      // Update chat history
+      setChatHistory((prev) => ({
+        ...prev,
+        [msg.sender]: [...(prev[msg.sender] || []), msg]
+      }));
+
+      // If this message is from the currently selected user, update messages display
+      if (selectedUser === msg.sender) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+
+    socket.on("receive-message", handleIncomingMessage);
+
     return () => {
       socket.off("online-users");
       socket.off("typing");
       socket.off("stop-typing");
       socket.off("last-seen");
+      socket.off("unread-update");
+      socket.off("receive-message", handleIncomingMessage);
     };
-  }, [socket, user]);
+  }, [socket, user, selectedUser]);
 
   useEffect(() => {
     if (!user || !selectedUser || !socket) return;
@@ -55,25 +82,13 @@ function Chat() {
     // Join room when user is selected
     socket.emit("join-room", { user1: user.email, user2: selectedUser });
     
+    // Mark messages as read
+    socket.emit("mark-as-read", { user1: user.email, user2: selectedUser });
+    
     // Load chat history for this user
     setMessages(chatHistory[selectedUser] || []);
 
-    // Listen for messages in this room
-    const handleReceiveMessage = (msg) => {
-      console.log("📨 Received message:", msg);
-      setMessages(prev => [...prev, msg]);
-      setChatHistory(prev => ({
-        ...prev,
-        [selectedUser]: [...(prev[selectedUser] || []), msg]
-      }));
-    };
-
-    socket.on("receive-message", handleReceiveMessage);
-
-    return () => {
-      socket.off("receive-message", handleReceiveMessage);
-    };
-  }, [selectedUser, user, socket, chatHistory]);
+  }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
     if (!user) return;
@@ -110,7 +125,13 @@ function Chat() {
   };
 
   const handleUserSelect = (u) => {
+    console.log(`👤 Selected user: ${u}`);
     setSelectedUser(u);
+    
+    // Update messages when user is selected
+    if (chatHistory[u]) {
+      setMessages(chatHistory[u]);
+    }
   };
 
   // Filter out current user from the user list
@@ -127,7 +148,12 @@ function Chat() {
 
   const isUserOnline = (userEmail) => onlineUsers.includes(userEmail);
 
-  if (!user) return <h2>Loading...</h2>;
+  // Get unread count for a user
+  const getUnreadCount = (otherUser) => {
+    if (!user) return 0;
+    const key = `${otherUser}_${user.email}`;
+    return unreadMessages[key] || 0;
+  };
 
   if (!user) return <h2>Loading...</h2>;
 
@@ -145,21 +171,29 @@ function Chat() {
         {recentChats.length > 0 && (
           <div className="section">
             <div className="section-title">Recent Chats</div>
-            {recentChats.map((u, i) => (
-              <div 
-                key={`recent-${i}`}
-                className={`user-item ${selectedUser === u ? 'active' : ''}`}
-                onClick={() => handleUserSelect(u)}
-              >
-                <div className="user-info">
-                  <div className="user-name">{u}</div>
-                  <div className="user-status">
-                    {isUserOnline(u) ? '🟢 Online' : '⚫ Offline'}
+            {recentChats.map((u, i) => {
+              const unreadCount = getUnreadCount(u);
+              return (
+                <div 
+                  key={`recent-${i}`}
+                  className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
+                  onClick={() => handleUserSelect(u)}
+                >
+                  <div className="user-info">
+                    <div className="user-name-with-badge">
+                      {u}
+                      {unreadCount > 0 && (
+                        <span className="unread-badge">{unreadCount}</span>
+                      )}
+                    </div>
+                    <div className="user-status">
+                      {isUserOnline(u) ? '🟢 Online' : '⚫ Offline'}
+                    </div>
                   </div>
+                  {isUserOnline(u) && <span className="online-dot">●</span>}
                 </div>
-                {isUserOnline(u) && <span className="online-dot">●</span>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -169,19 +203,27 @@ function Chat() {
           {otherOnlineUsers.length === 0 ? (
             <div className="no-users">No users online</div>
           ) : (
-            otherOnlineUsers.map((u, i) => (
-              <div 
-                key={`online-${i}`}
-                className={`user-item ${selectedUser === u ? 'active' : ''}`}
-                onClick={() => handleUserSelect(u)}
-              >
-                <div className="user-info">
-                  <div className="user-name">{u}</div>
-                  <div className="user-status">Online</div>
+            otherOnlineUsers.map((u, i) => {
+              const unreadCount = getUnreadCount(u);
+              return (
+                <div 
+                  key={`online-${i}`}
+                  className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
+                  onClick={() => handleUserSelect(u)}
+                >
+                  <div className="user-info">
+                    <div className="user-name-with-badge">
+                      {u}
+                      {unreadCount > 0 && (
+                        <span className="unread-badge">{unreadCount}</span>
+                      )}
+                    </div>
+                    <div className="user-status">Online</div>
+                  </div>
+                  <span className="online-dot">●</span>
                 </div>
-                <span className="online-dot">●</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

@@ -112,6 +112,16 @@ html, body, #root {
   font-weight: 700;
   min-width: 22px;
   text-align: center;
+  animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 107, 107, 0);
+  }
 }
 
 .last-message {
@@ -123,7 +133,7 @@ html, body, #root {
 }
 
 .user-item.unread {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.15) !important;
   font-weight: 600;
 }
 

@@ -6,6 +6,8 @@ const getRoomId = (user1, user2) => {
 
 // Track which users are in which rooms
 const roomUsers = {};
+// Track unread messages
+const unreadMessages = {};
 
 module.exports = (io, socket, users) => {
 
@@ -33,6 +35,14 @@ module.exports = (io, socket, users) => {
     
     console.log(`✅ ${user1} joined room: ${roomId}`);
     console.log(`Room users:`, roomUsers[roomId]);
+    
+    // Mark messages as read when user enters the room
+    const key = `${user2}_${user1}`; // unread from user2 to user1
+    if (unreadMessages[key]) {
+      unreadMessages[key] = 0;
+      console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
+      io.emit("unread-update", unreadMessages);
+    }
   });
 
   // SEND MESSAGE
@@ -45,7 +55,8 @@ module.exports = (io, socket, users) => {
         sender, 
         receiver, 
         text,
-        timestamp: new Date()
+        timestamp: new Date(),
+        seen: false
       };
       
       // Try to save to DB
@@ -54,20 +65,40 @@ module.exports = (io, socket, users) => {
           sender,
           receiver,
           text,
+          seen: false
         });
       } catch (dbErr) {
         console.log("📝 Message not saved to DB (MongoDB offline), broadcasting in real-time only");
         message._id = Date.now().toString();
       }
 
+      // Track unread message
+      const unreadKey = `${sender}_${receiver}`;
+      unreadMessages[unreadKey] = (unreadMessages[unreadKey] || 0) + 1;
+      console.log(`📨 Unread from ${sender} to ${receiver}: ${unreadMessages[unreadKey]}`);
+
       // Send to all users in the room
       io.to(roomId).emit("receive-message", message);
+      
+      // Send unread count update to all clients
+      io.emit("unread-update", unreadMessages);
+      
       console.log(`✅ Message broadcasted to room ${roomId}`);
       console.log(`   From: ${sender}, To: ${receiver}, Text: "${text}"`);
       
     } catch (err) {
       console.error("❌ Error sending message:", err.message);
       socket.emit("error", { message: "Failed to send message" });
+    }
+  });
+
+  // MARK MESSAGES AS READ
+  socket.on("mark-as-read", ({ user1, user2 }) => {
+    const unreadKey = `${user2}_${user1}`;
+    if (unreadMessages[unreadKey]) {
+      unreadMessages[unreadKey] = 0;
+      console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
+      io.emit("unread-update", unreadMessages);
     }
   });
 
