@@ -5,7 +5,15 @@ const handleMessages = require("./message");
 
 const initSocket = (server) => {
   const io = new Server(server, {
-    cors: { origin: ["http://localhost:3000", "http://localhost:3001"] },
+    cors: { 
+      origin: [
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "https://chat-app-nine-zeta-71.vercel.app"
+      ],
+      methods: ["GET", "POST"],
+      credentials: true
+    },
   });
 
   // Global users tracking
