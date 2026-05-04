@@ -32,6 +32,15 @@ function Chat() {
           [userData.email]: userData.profilePic
         }));
       }
+      // Restore chat history from localStorage
+      const savedChatHistory = localStorage.getItem(`chatHistory_${userData.email}`);
+      if (savedChatHistory) {
+        try {
+          setChatHistory(JSON.parse(savedChatHistory));
+        } catch (e) {
+          console.error("Failed to restore chat history", e);
+        }
+      }
     }
   }, [navigate]);
 
@@ -72,14 +81,22 @@ function Chat() {
     });
 
     // Listen for incoming messages globally (even when not in the room)
+    // Listen for incoming messages globally (even when not in the room)
     const handleIncomingMessage = (msg) => {
       console.log("📨 Incoming message:", msg);
       
       // Update chat history
-      setChatHistory((prev) => ({
-        ...prev,
-        [msg.sender]: [...(prev[msg.sender] || []), msg]
-      }));
+      setChatHistory((prev) => {
+        const updated = {
+          ...prev,
+          [msg.sender]: [...(prev[msg.sender] || []), msg]
+        };
+        // Save to localStorage
+        if (user) {
+          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
 
       // If this message is from the currently selected user, update messages display
       if (selectedUser === msg.sender) {
@@ -132,6 +149,12 @@ function Chat() {
   const sendMessage = () => {
     if (!user || !selectedUser || !message.trim() || !socket) return;
 
+    // Check if socket is connected
+    if (!socket.connected) {
+      alert("❌ You are offline. Please check your connection.");
+      return;
+    }
+
     const msgText = message;
     console.log(`📤 Sending message from ${user.email} to ${selectedUser}: "${msgText}"`);
 
@@ -146,10 +169,17 @@ function Chat() {
 
     // Add to local state immediately (so you see your own message)
     setMessages((prev) => [...prev, newMsg]);
-    setChatHistory((prev) => ({
-      ...prev,
-      [selectedUser]: [...(prev[selectedUser] || []), newMsg]
-    }));
+    setChatHistory((prev) => {
+      const updated = {
+        ...prev,
+        [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+      };
+      // Save to localStorage
+      if (user) {
+        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
 
     // Send to server
     socket.emit("send-message", newMsg);
@@ -161,9 +191,17 @@ function Chat() {
     const file = e.target.files[0];
     if (!file || !user || !selectedUser || !socket) return;
 
+    // Check if socket is connected
+    if (!socket.connected) {
+      alert("❌ You are offline. Please check your connection.");
+      e.target.value = null;
+      return;
+    }
+
     // Validate file size (max 50MB)
     if (file.size > 50 * 1024 * 1024) {
       alert("File size must be less than 50MB");
+      e.target.value = null;
       return;
     }
 
@@ -190,10 +228,17 @@ function Chat() {
 
       // Add to local state immediately (so you see your own media message)
       setMessages((prev) => [...prev, newMsg]);
-      setChatHistory((prev) => ({
-        ...prev,
-        [selectedUser]: [...(prev[selectedUser] || []), newMsg]
-      }));
+      setChatHistory((prev) => {
+        const updated = {
+          ...prev,
+          [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+        };
+        // Save to localStorage
+        if (user) {
+          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
 
       // Send to server
       socket.emit("send-message", newMsg);
