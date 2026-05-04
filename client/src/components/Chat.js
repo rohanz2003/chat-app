@@ -135,13 +135,24 @@ function Chat() {
     const msgText = message;
     console.log(`📤 Sending message from ${user.email} to ${selectedUser}: "${msgText}"`);
 
-    // Send to server
-    socket.emit("send-message", {
+    // Create message object
+    const newMsg = {
       sender: user.email,
       receiver: selectedUser,
       text: msgText,
-      type: "text"
-    });
+      type: "text",
+      timestamp: new Date().toISOString()
+    };
+
+    // Add to local state immediately (so you see your own message)
+    setMessages((prev) => [...prev, newMsg]);
+    setChatHistory((prev) => ({
+      ...prev,
+      [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+    }));
+
+    // Send to server
+    socket.emit("send-message", newMsg);
 
     setMessage("");
   };
@@ -167,13 +178,25 @@ function Chat() {
 
       console.log(`📎 Sending file: ${file.name}`);
 
-      socket.emit("send-message", {
+      // Create message object
+      const newMsg = {
         sender: user.email,
         receiver: selectedUser,
         text: fileData,
         type: "media",
-        mediaType: file.type.split('/')[0] // 'image', 'video', 'application'
-      });
+        mediaType: file.type.split('/')[0], // 'image', 'video', 'application'
+        timestamp: new Date().toISOString()
+      };
+
+      // Add to local state immediately (so you see your own media message)
+      setMessages((prev) => [...prev, newMsg]);
+      setChatHistory((prev) => ({
+        ...prev,
+        [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+      }));
+
+      // Send to server
+      socket.emit("send-message", newMsg);
     };
 
     reader.readAsDataURL(file);
