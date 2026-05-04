@@ -179,6 +179,7 @@ function Chat() {
                   className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
                   onClick={() => handleUserSelect(u)}
                 >
+                  {unreadCount > 0 && <div className="unread-dot"></div>}
                   <div className="user-info">
                     <div className="user-name-with-badge">
                       {u}
@@ -211,6 +212,7 @@ function Chat() {
                   className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
                   onClick={() => handleUserSelect(u)}
                 >
+                  {unreadCount > 0 && <div className="unread-dot"></div>}
                   <div className="user-info">
                     <div className="user-name-with-badge">
                       {u}

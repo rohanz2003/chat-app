@@ -124,6 +124,30 @@ html, body, #root {
   }
 }
 
+/* Red notification dot for unread messages */
+.unread-dot {
+  width: 12px;
+  height: 12px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  animation: dotPulse 2s infinite;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
 .last-message {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
@@ -135,6 +159,7 @@ html, body, #root {
 .user-item.unread {
   background: rgba(255, 255, 255, 0.15) !important;
   font-weight: 600;
+  position: relative;
 }
 
 .user-status {
