@@ -265,6 +265,17 @@ function Chat() {
     e.target.value = null; // Reset input
   };
 
+  const handleClearAllHistory = () => {
+    if (!user) return;
+    if (window.confirm("Are you sure you want to clear ALL chat history? This will only clear it from your browser.")) {
+      setChatHistory({});
+      setMessages([]);
+      setSelectedUser(null);
+      localStorage.removeItem(`chatHistory_${user.email}`);
+      console.log("🗑️ All chat history cleared locally.");
+    }
+  };
+
   const handleClearChat = () => {
     if (!user || !selectedUser) return;
 
@@ -280,7 +291,6 @@ function Chat() {
         return updatedHistory;
       });
       setMessages([]); // Clear displayed messages
-      setSelectedUser(null); // Deselect the user after clearing chat
       console.log(`🗑️ Chat history with ${selectedUser} cleared locally.`);
     }
   };
@@ -330,7 +340,10 @@ function Chat() {
       <div className="sidebar">
         <div className="sidebar-header">
           <h3>💬 Chats</h3>
-          <span className="user-badge">{user.email.split('@')[0]}</span>
+          <div className="sidebar-header-right">
+            <button onClick={handleClearAllHistory} className="clear-all-btn" title="Clear All History">🗑️</button>
+            <span className="user-badge">{user.email.split('@')[0]}</span>
+          </div>
         </div>
 
         {/* RECENT CHATS SECTION */}

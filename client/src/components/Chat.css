@@ -37,6 +37,28 @@ html, body, #root {
   background: rgba(0, 0, 0, 0.1);
 }
 
+.sidebar-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clear-all-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+  background: rgba(255, 107, 107, 0.4);
+  border-color: #ff6b6b;
+}
+
 .sidebar-header h3 {
   margin: 0;
   font-size: 20px;
