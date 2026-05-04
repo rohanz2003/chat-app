@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import useSocket from "../hooks/useSocket";
 import { formatLastSeen } from "../utils/timeFormatter";
+import { fetchMessages } from "../services/messageService";
 import { useNavigate } from "react-router-dom";
 import "./Chat.css";
 
@@ -84,12 +85,17 @@ function Chat() {
     // Listen for incoming messages globally (even when not in the room)
     const handleIncomingMessage = (msg) => {
       console.log("📨 Incoming message:", msg);
+      const otherParty = msg.sender === user.email ? msg.receiver : msg.sender;
       
       // Update chat history
       setChatHistory((prev) => {
+        const currentHistory = prev[otherParty] || [];
+        // Avoid duplicates
+        if (currentHistory.some(m => m._id === msg._id)) return prev;
+
         const updated = {
           ...prev,
-          [msg.sender]: [...(prev[msg.sender] || []), msg]
+          [otherParty]: [...currentHistory, msg]
         };
         // Save to localStorage
         if (user) {
@@ -99,8 +105,8 @@ function Chat() {
       });
 
       // If this message is from the currently selected user, update messages display
-      if (selectedUser === msg.sender) {
-        setMessages((prev) => [...prev, msg]);
+      if (selectedUser === otherParty) {
+        setMessages((prev) => prev.some(m => m._id === msg._id) ? prev : [...prev, msg]);
       }
     };
 
@@ -118,20 +124,31 @@ function Chat() {
   }, [socket, user, selectedUser]);
 
   useEffect(() => {
-    if (!user || !selectedUser || !socket) return;
+    const syncChat = async () => {
+      if (!user || !selectedUser || !socket) return;
 
-    console.log(`📍 Joining room for conversation: ${user.email} ↔ ${selectedUser}`);
+      console.log(`📍 Joining room and fetching history: ${user.email} ↔ ${selectedUser}`);
 
-    // Join room when user is selected
-    socket.emit("join-room", { user1: user.email, user2: selectedUser });
-    
-    // Mark messages as read
-    socket.emit("mark-as-read", { user1: user.email, user2: selectedUser });
-    
-    // Load chat history for this user
-    setMessages(chatHistory[selectedUser] || []);
+      // 1. Join room
+      socket.emit("join-room", { user1: user.email, user2: selectedUser });
+      
+      // 2. Mark messages as read on server
+      socket.emit("mark-as-read", { user1: user.email, user2: selectedUser });
+      
+      // 3. Fetch full history from Database (Fixes the "no msg show" issue)
+      try {
+        const history = await fetchMessages(user.email, selectedUser);
+        setMessages(history);
+        setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+        // Fallback to local storage if API fails
+        setMessages(chatHistory[selectedUser] || []);
+      }
+    };
 
-  }, [selectedUser, user, socket, chatHistory]);
+    syncChat();
+  }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
     if (!user) return;
