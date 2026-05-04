@@ -12,12 +12,43 @@ function Login() {
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [profilePic, setProfilePic] = useState(null);
+  const [previewPic, setPreviewPic] = useState(null);
 
   const navigate = useNavigate();
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB");
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert("Please select an image file");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePic(reader.result);
+        setPreviewPic(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAuth = async () => {
     if (!email || !password) {
       alert("Please fill all fields");
+      return;
+    }
+
+    if (!isLogin && !profilePic) {
+      alert("Please select a profile picture");
       return;
     }
 
@@ -40,7 +71,8 @@ function Login() {
         "user",
         JSON.stringify({
           email: user.email,
-          uid: user.uid
+          uid: user.uid,
+          profilePic: profilePic || null
         })
       );
 
@@ -57,7 +89,7 @@ function Login() {
   return (
     <div className="login">
       <div className="login-container">
-        <h2>{isLogin ? "Login" : "Sign Up"}</h2>
+        <h2>{isLogin ? "💬 Login" : "👤 Create Account"}</h2>
 
         <input
           type="email"
@@ -73,13 +105,41 @@ function Login() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
+        {!isLogin && (
+          <>
+            <div className="profile-pic-section">
+              <label htmlFor="profilePic" className="profile-pic-label">
+                {previewPic ? (
+                  <img src={previewPic} alt="Profile" className="profile-pic-preview" />
+                ) : (
+                  <div className="profile-pic-placeholder">
+                    📸 Click to Upload Profile Picture
+                  </div>
+                )}
+              </label>
+              <input
+                id="profilePic"
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePicChange}
+                style={{ display: 'none' }}
+              />
+            </div>
+            <p className="pic-info">Upload a profile picture (JPG, PNG, max 5MB)</p>
+          </>
+        )}
+
         <button onClick={handleAuth} disabled={loading}>
           {loading ? "Please wait..." : isLogin ? "Login" : "Sign Up"}
         </button>
 
         <p
-          style={{ marginTop: "10px", cursor: "pointer", color: "#4CAF50" }}
-          onClick={() => setIsLogin(!isLogin)}
+          style={{ marginTop: "10px", cursor: "pointer", color: "#1e88e5" }}
+          onClick={() => {
+            setIsLogin(!isLogin);
+            setProfilePic(null);
+            setPreviewPic(null);
+          }}
         >
           {isLogin
             ? "Don't have an account? Sign Up"

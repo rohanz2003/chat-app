@@ -17,17 +17,33 @@ function Chat() {
   const [messages, setMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState({}); // Track unread counts
+  const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) navigate("/");
-    else setUser(JSON.parse(storedUser));
+    else {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      // Store current user's profile
+      if (userData.profilePic) {
+        setUserProfiles((prev) => ({
+          ...prev,
+          [userData.email]: userData.profilePic
+        }));
+      }
+    }
   }, [navigate]);
 
   useEffect(() => {
     if (!user || !socket) return;
 
-    socket.emit("join", user.email);
+    // Emit user join with profile picture
+    socket.emit("join", {
+      email: user.email,
+      profilePic: user.profilePic || null
+    });
+
     socket.on("online-users", setOnlineUsers);
 
     socket.on("typing", (from) => setTypingUser(from));
@@ -44,6 +60,15 @@ function Chat() {
     socket.on("unread-update", (unreadData) => {
       console.log("📬 Unread messages updated:", unreadData);
       setUnreadMessages(unreadData);
+    });
+
+    // Listen for profile picture updates
+    socket.on("user-profile-update", (data) => {
+      console.log("👤 Profile update:", data);
+      setUserProfiles((prev) => ({
+        ...prev,
+        [data.email]: data.profilePic
+      }));
     });
 
     // Listen for incoming messages globally (even when not in the room)
@@ -70,6 +95,7 @@ function Chat() {
       socket.off("stop-typing");
       socket.off("last-seen");
       socket.off("unread-update");
+      socket.off("user-profile-update");
       socket.off("receive-message", handleIncomingMessage);
     };
   }, [socket, user, selectedUser]);
@@ -88,7 +114,7 @@ function Chat() {
     // Load chat history for this user
     setMessages(chatHistory[selectedUser] || []);
 
-  }, [selectedUser, user, socket]);
+  }, [selectedUser, user, socket, chatHistory]);
 
   const handleTyping = (e) => {
     if (!user) return;
@@ -114,9 +140,44 @@ function Chat() {
       sender: user.email,
       receiver: selectedUser,
       text: msgText,
+      type: "text"
     });
 
     setMessage("");
+  };
+
+  const handleMediaShare = (e) => {
+    const file = e.target.files[0];
+    if (!file || !user || !selectedUser || !socket) return;
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert("File size must be less than 50MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const fileData = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: reader.result
+      };
+
+      console.log(`📎 Sending file: ${file.name}`);
+
+      socket.emit("send-message", {
+        sender: user.email,
+        receiver: selectedUser,
+        text: fileData,
+        type: "media",
+        mediaType: file.type.split('/')[0] // 'image', 'video', 'application'
+      });
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = null; // Reset input
   };
 
   const logout = () => {
@@ -180,6 +241,9 @@ function Chat() {
                   onClick={() => handleUserSelect(u)}
                 >
                   {unreadCount > 0 && <div className="unread-dot"></div>}
+                  {userProfiles[u] && (
+                    <img src={userProfiles[u]} alt={u} className="user-avatar" />
+                  )}
                   <div className="user-info">
                     <div className="user-name-with-badge">
                       {u}
@@ -213,6 +277,9 @@ function Chat() {
                   onClick={() => handleUserSelect(u)}
                 >
                   {unreadCount > 0 && <div className="unread-dot"></div>}
+                  {userProfiles[u] && (
+                    <img src={userProfiles[u]} alt={u} className="user-avatar" />
+                  )}
                   <div className="user-info">
                     <div className="user-name-with-badge">
                       {u}
@@ -235,19 +302,24 @@ function Chat() {
 
         {/* HEADER */}
         <div className="chat-header">
-          <div>
-            {selectedUser ? (
-              <>
-                <h2>{selectedUser}</h2>
-                <div className="status">
-                  {isUserOnline(selectedUser)
-                    ? "🟢 Online"
-                    : formatLastSeen(lastSeen[selectedUser])}
-                </div>
-              </>
-            ) : (
-              <h2>Select a chat to start messaging</h2>
+          <div className="header-user-info">
+            {selectedUser && userProfiles[selectedUser] && (
+              <img src={userProfiles[selectedUser]} alt="Profile" className="header-profile-pic" />
             )}
+            <div>
+              {selectedUser ? (
+                <>
+                  <h2>{selectedUser}</h2>
+                  <div className="status">
+                    {isUserOnline(selectedUser)
+                      ? "🟢 Online"
+                      : formatLastSeen(lastSeen[selectedUser])}
+                  </div>
+                </>
+              ) : (
+                <h2>Select a chat to start messaging</h2>
+              )}
+            </div>
           </div>
 
           <button onClick={logout}>Logout</button>
@@ -267,7 +339,29 @@ function Chat() {
                   msg.sender === user.email ? "sent" : "received"
                 }`}
               >
-                {msg.text}
+                {msg.type === "media" ? (
+                  <div className="media-message">
+                    {msg.mediaType === "image" && (
+                      <img src={msg.text.data} alt="Shared" className="media-image" />
+                    )}
+                    {msg.mediaType === "video" && (
+                      <video controls className="media-video">
+                        <source src={msg.text.data} type={msg.text.type} />
+                        Your browser does not support video playback
+                      </video>
+                    )}
+                    {msg.mediaType === "application" && (
+                      <div className="media-file">
+                        <span>📎 {msg.text.name}</span>
+                        <a href={msg.text.data} download={msg.text.name} className="download-btn">
+                          Download
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  msg.text
+                )}
               </div>
             ))
           )}
@@ -286,6 +380,17 @@ function Chat() {
             onChange={handleTyping}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             disabled={!selectedUser}
+          />
+          <label htmlFor="media-input" className="media-button" title="Share photo, video, or file">
+            📎
+          </label>
+          <input
+            id="media-input"
+            type="file"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            onChange={handleMediaShare}
+            disabled={!selectedUser}
+            style={{ display: 'none' }}
           />
           <button onClick={sendMessage} disabled={!selectedUser}>➤</button>
         </div>

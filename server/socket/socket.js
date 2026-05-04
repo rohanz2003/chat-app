@@ -19,11 +19,12 @@ const initSocket = (server) => {
 
   // Global users tracking
   const users = {};
+  const userProfiles = {};
 
   io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    handlePresence(io, socket, users);
+    handlePresence(io, socket, users, userProfiles);
     handleTyping(io, socket, users);
     handleMessages(io, socket, users);
 

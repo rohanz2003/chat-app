@@ -6,6 +6,7 @@
   align-items: center;
   background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  padding: 20px;
 }
 
 /* Card */
@@ -18,6 +19,8 @@
   text-align: center;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.5s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 @keyframes slideUp {
@@ -41,7 +44,8 @@
 }
 
 /* Inputs */
-.login-container input {
+.login-container input[type="email"],
+.login-container input[type="password"] {
   width: 100%;
   padding: 14px 16px;
   margin: 12px 0;
@@ -64,6 +68,54 @@
   color: #999;
 }
 
+/* Profile Picture Section */
+.profile-pic-section {
+  margin: 24px 0;
+}
+
+.profile-pic-label {
+  display: block;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.profile-pic-placeholder {
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);
+  border: 3px dashed #1e88e5;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e88e5;
+  transition: all 0.3s;
+}
+
+.profile-pic-label:hover .profile-pic-placeholder {
+  background: linear-gradient(135deg, #d0d0d0 0%, #e5e5e5 100%);
+  border-color: #1565c0;
+  box-shadow: 0 4px 12px rgba(30, 136, 229, 0.2);
+}
+
+.profile-pic-preview {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 3px solid #1e88e5;
+  box-shadow: 0 4px 12px rgba(30, 136, 229, 0.2);
+}
+
+.pic-info {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
 /* Button */
 .login-container button {
   width: 100%;
@@ -82,14 +134,25 @@
 }
 
 /* Hover effect */
-.login-container button:hover {
+.login-container button:hover:not(:disabled) {
   background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(30, 136, 229, 0.4);
 }
 
-.login-container button:active {
+.login-container button:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.login-container button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-container p {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #666;
 }
 
 /* Mobile responsive */
@@ -114,10 +177,23 @@
     font-size: 14px;
   }
 
+  .profile-pic-placeholder {
+    height: 120px;
+    font-size: 14px;
+  }
+
+  .profile-pic-preview {
+    height: 120px;
+  }
+
   .login-container button {
     padding: 12px 14px;
     font-size: 15px;
     margin-top: 18px;
+  }
+
+  .login-container p {
+    font-size: 13px;
   }
 }
 
@@ -135,6 +211,15 @@
     padding: 11px 12px;
     font-size: 13px;
     margin: 8px 0;
+  }
+
+  .profile-pic-placeholder {
+    height: 100px;
+    font-size: 12px;
+  }
+
+  .profile-pic-preview {
+    height: 100px;
   }
 
   .login-container button {
