@@ -26,6 +26,44 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  transition: width 0.3s ease;
+}
+
+/* Minimized Sidebar */
+.sidebar.minimized {
+  width: 70px;
+  overflow-x: hidden;
+}
+
+.sidebar.minimized .sidebar-header h3,
+.sidebar.minimized .section-title,
+.sidebar.minimized .user-status,
+.sidebar.minimized .user-info {
+  display: none;
+}
+
+.sidebar.minimized .user-item {
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar.minimized .user-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.sidebar.minimized .user-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.sidebar.minimized .online-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
 }
 
 .sidebar-header {
@@ -35,12 +73,26 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 0, 0, 0.1);
+  transition: padding 0.3s ease;
+}
+
+.sidebar.minimized .sidebar-header {
+  padding: 12px 4px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .sidebar-header-right {
   display: flex;
   align-items: center;
   gap: 10px;
+  transition: flex-direction 0.3s ease;
+}
+
+.sidebar.minimized .sidebar-header-right {
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
 }
 
 .clear-all-btn {
@@ -57,6 +109,23 @@ html, body, #root {
 .clear-all-btn:hover {
   background: rgba(255, 107, 107, 0.4);
   border-color: #ff6b6b;
+}
+
+.minimize-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 32px;
+}
+
+.minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .sidebar-header h3 {
@@ -93,6 +162,7 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .user-item:hover {
@@ -103,6 +173,12 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.2);
   border-left: 4px solid white;
   padding-left: 12px;
+}
+
+.sidebar.minimized .user-item.active {
+  border-left: none;
+  border-bottom: 3px solid white;
+  padding-left: 8px;
 }
 
 .user-avatar {

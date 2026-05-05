@@ -19,6 +19,7 @@ function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState({}); // Track unread counts
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
+  const [sidebarMinimized, setSidebarMinimized] = useState(false); // Sidebar minimize state
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -341,12 +342,15 @@ function Chat() {
     <div className="chat-layout">
 
       {/* SIDEBAR */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarMinimized ? 'minimized' : ''}`}>
         <div className="sidebar-header">
           <h3>💬 Chats</h3>
           <div className="sidebar-header-right">
+            <button onClick={() => setSidebarMinimized(!sidebarMinimized)} className="minimize-btn" title={sidebarMinimized ? "Maximize" : "Minimize"}>
+              {sidebarMinimized ? '→' : '←'}
+            </button>
             <button onClick={handleClearAllHistory} className="clear-all-btn" title="Clear All History">🗑️</button>
-            <span className="user-badge">{user.email.split('@')[0]}</span>
+            {!sidebarMinimized && <span className="user-badge">{user.email.split('@')[0]}</span>}
           </div>
         </div>
 
