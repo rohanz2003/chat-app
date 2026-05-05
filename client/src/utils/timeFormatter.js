@@ -4,11 +4,14 @@ export const formatLastSeen = (time) => {
   return "Last seen at " + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
 };
 
-export const formatMessageTime = (timestamp) => {
-  if (!timestamp) return "";
-  const date = new Date(timestamp);
+export const formatMessageTime = (time) => {
+  if (!time) return "";
+  const date = new Date(time);
+  if (isNaN(date.getTime())) return ""; // Handle invalid dates
+  
   const now = new Date();
   const diffInHours = (now - date) / (1000 * 60 * 60);
+  
 
   if (diffInHours < 24) {
     // Today: show time like "2:30 PM"

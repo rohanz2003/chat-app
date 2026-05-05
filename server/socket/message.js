@@ -59,7 +59,7 @@ module.exports = (io, socket, users) => {
 
   // SEND MESSAGE
   socket.on("send-message", async (data, callback) => {
-    const { sender, receiver, text, type, mediaType, tempId } = data;
+    const { sender, receiver, text, type, mediaType, tempId, timestamp } = data;
     const roomId = getRoomId(sender, receiver);
 
     try {
@@ -70,7 +70,7 @@ module.exports = (io, socket, users) => {
         type: type || 'text',
         mediaType: mediaType || null,
         tempId: tempId,
-        timestamp: new Date(),
+        timestamp: timestamp || new Date(),
         seen: false
       };
       
@@ -83,7 +83,7 @@ module.exports = (io, socket, users) => {
           type: type || 'text',
           mediaType: mediaType || null,
           tempId: tempId,
-        timestamp: new Date(),
+          timestamp: timestamp || new Date(),
           seen: false
         });
       } catch (dbErr) {

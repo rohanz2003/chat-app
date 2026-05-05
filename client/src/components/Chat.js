@@ -173,7 +173,7 @@ function Chat() {
           );
 
           if (isDuplicate) return prev;
-          return [...prev, msg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          return [...prev, msg].sort((a, b) => new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt));
         });
       }
     };
@@ -216,7 +216,7 @@ function Chat() {
           const uniqueLiveMessages = prev.filter(m => !historyIds.has(m._id) && !historyTempIds.has(m.tempId));
           const merged = [...history, ...uniqueLiveMessages];
           // Always sort to ensure chronological order regardless of fetch timing
-          return merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          return merged.sort((a, b) => new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt));
         });
       } catch (err) {
         console.error("Failed to fetch messages:", err);
@@ -433,7 +433,7 @@ function Chat() {
     
     // Update messages when user is selected, ensuring chronological order
     if (chatHistory[u]) {
-      setMessages(chatHistory[u].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
+      setMessages(chatHistory[u].sort((a, b) => new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt)));
     }
   };
 
@@ -615,8 +615,10 @@ function Chat() {
                     msg.text
                   )}
                 </div>
-                <div className="message-time">
-                  {formatMessageTime(msg.timestamp)}
+                <div className="message-details">
+                  <span className="message-time">
+                    {formatMessageTime(msg.timestamp || msg.createdAt)}
+                  </span>
                 </div>
               </div>
             ))

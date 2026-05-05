@@ -2,8 +2,9 @@ import React from "react";
 
 function Message({ msg, currentUser }) {
   // Using a consistent 12-hour lowercase format
-  const messageTime = msg.timestamp 
-    ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+  const timeToFormat = msg.timestamp || msg.createdAt;
+  const messageTime = timeToFormat 
+    ? new Date(timeToFormat).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
     : "";
     
   return (
