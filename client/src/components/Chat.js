@@ -133,7 +133,11 @@ function Chat() {
     // Listen for incoming messages globally (even when not in the room)
     const handleIncomingMessage = (msg) => {
       console.log("📨 Incoming message:", msg);
-      const otherParty = msg.sender === user.email ? msg.receiver : msg.sender;
+      
+      const senderEmail = msg.sender.toLowerCase();
+      const receiverEmail = msg.receiver.toLowerCase();
+      const currentUserEmail = user.email.toLowerCase();
+      const otherParty = senderEmail === currentUserEmail ? receiverEmail : senderEmail;
       
       // Update chat history
       setChatHistory((prev) => {
@@ -161,18 +165,15 @@ function Chat() {
       });
 
       // If this message is from the currently selected user, update messages display
-      if (selectedUserRef.current === otherParty) {
+      if (selectedUserRef.current && selectedUserRef.current.toLowerCase() === otherParty) {
         setMessages((prev) => {
           const isDuplicate = prev.some(m =>
             (msg._id && m._id === msg._id) ||
-            (m.sender === msg.sender && m.receiver === msg.receiver && m.tempId === msg.tempId) ||
-            (m.sender === msg.sender && !m._id && !msg.tempId && JSON.stringify(m.text) === JSON.stringify(msg.text))
+            (msg.tempId && m.tempId === msg.tempId)
           );
 
           if (isDuplicate) return prev;
-          const newMessages = [...prev, msg];
-          // Sort by timestamp to ensure correct order
-          return newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          return [...prev, msg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         });
       }
     };

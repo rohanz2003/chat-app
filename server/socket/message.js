@@ -1,7 +1,7 @@
 const Message = require("../models/Message");
 
 const getRoomId = (user1, user2) => {
-  return [user1, user2].sort().join("_");
+  return [user1.toLowerCase(), user2.toLowerCase()].sort().join("_");
 };
 
 // Track which users are in which rooms
