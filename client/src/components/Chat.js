@@ -20,6 +20,7 @@ function Chat() {
   const [unreadMessages, setUnreadMessages] = useState({}); // Track unread counts
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
   const [sidebarMinimized, setSidebarMinimized] = useState(false); // Sidebar minimize state
+  const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -216,59 +217,94 @@ function Chat() {
       return;
     }
 
-    // Validate file size (max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      alert("File size must be less than 50MB");
+    // Prevent multiple sends
+    if (isMediaSending) {
+      alert("⏳ File is already being sent. Please wait...");
       e.target.value = null;
       return;
     }
 
+    // Validate file size (max 5MB for images, 20MB for others)
+    const isImage = file.type.startsWith('image/');
+    const maxSize = isImage ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+    
+    if (file.size > maxSize) {
+      alert(`File size must be less than ${isImage ? '5MB' : '20MB'}`);
+      e.target.value = null;
+      return;
+    }
+
+    setIsMediaSending(true);
+
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const fileData = {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data: reader.result
-      };
-
-      console.log(`📎 Sending file: ${file.name}`);
-
-      // Create message object
-      const newMsg = {
-        sender: user.email,
-        receiver: selectedUser,
-        text: fileData,
-        type: "media",
-        mediaType: file.type.split('/')[0], // 'image', 'video', 'application'
-        timestamp: new Date().toISOString()
-      };
-
-      // Add to local state immediately (so you see your own media message)
-      setMessages((prev) => [...prev, newMsg]);
-      setChatHistory((prev) => {
-        const updated = {
-          ...prev,
-          [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+    reader.onload = () => {
+      try {
+        const fileData = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: reader.result
         };
-        // Save to localStorage
-        if (user) {
-          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
-        }
-        return updated;
-      });
 
-      // Send to server
-      socket.emit("send-message", newMsg);
+        console.log(`📎 Sending file: ${file.name}`);
+
+        // Create message object
+        const newMsg = {
+          sender: user.email,
+          receiver: selectedUser,
+          text: fileData,
+          type: "media",
+          mediaType: file.type.split('/')[0],
+          timestamp: new Date().toISOString()
+        };
+
+        // Add to local state
+        setMessages((prev) => [...prev, newMsg]);
+        setChatHistory((prev) => {
+          const updated = {
+            ...prev,
+            [selectedUser]: [...(prev[selectedUser] || []), newMsg]
+          };
+          if (user) {
+            localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
+
+        // Send to server
+        socket.emit("send-message", newMsg);
+        console.log("✅ Media sent successfully");
+      } catch (err) {
+        console.error("❌ Error processing file:", err);
+        alert("❌ Error sending file. Please try again.");
+      } finally {
+        setIsMediaSending(false);
+        e.target.value = null;
+      }
+    };
+
+    reader.onerror = () => {
+      console.error("❌ Error reading file");
+      alert("❌ Error reading file. Please try again.");
+      setIsMediaSending(false);
+      e.target.value = null;
     };
 
     reader.readAsDataURL(file);
-    e.target.value = null; // Reset input
   };
 
   const handleClearAllHistory = () => {
     if (!user) return;
     if (window.confirm("Are you sure you want to clear ALL chat history?")) {
+      // Delete all messages from database for this user
+      if (socket && socket.connected) {
+        Object.keys(chatHistory).forEach(otherUser => {
+          socket.emit("clear-chat", { user1: user.email, user2: otherUser });
+        });
+        console.log("🗑️ Clearing all chats from database");
+      }
+      
+      // Clear localStorage
       localStorage.removeItem(`chatHistory_${user.email}`);
       setChatHistory({});
       setMessages([]);
@@ -283,6 +319,12 @@ function Chat() {
     if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}?`)) {
       const chatWith = selectedUser;
       
+      // Delete from database via socket
+      if (socket && socket.connected) {
+        socket.emit("clear-chat", { user1: user.email, user2: chatWith });
+        console.log(`🗑️ Clearing chat in database with ${chatWith}`);
+      }
+      
       // Update chat history
       setChatHistory(prev => {
         const updated = { ...prev };
@@ -290,7 +332,7 @@ function Chat() {
         
         // Save to localStorage
         localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
-        console.log(`🗑️ Chat with ${chatWith} cleared.`);
+        console.log(`🗑️ Chat with ${chatWith} cleared from localStorage.`);
         
         return updated;
       });

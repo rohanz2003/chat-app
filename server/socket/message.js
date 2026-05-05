@@ -121,6 +121,25 @@ module.exports = (io, socket, users) => {
     }
   });
 
+  // CLEAR CHAT (Delete messages from database)
+  socket.on("clear-chat", async ({ user1, user2 }) => {
+    try {
+      // Delete all messages between these two users
+      const result = await Message.deleteMany({
+        $or: [
+          { sender: user1, receiver: user2 },
+          { sender: user2, receiver: user1 }
+        ]
+      });
+      
+      console.log(`🗑️ Deleted ${result.deletedCount} messages between ${user1} and ${user2}`);
+      socket.emit("chat-cleared", { user1, user2 });
+    } catch (err) {
+      console.error("❌ Error clearing chat:", err.message);
+      socket.emit("error", { message: "Failed to clear chat" });
+    }
+  });
+
   // Clean up on disconnect
   socket.on("disconnect", () => {
     for (let roomId in roomUsers) {
