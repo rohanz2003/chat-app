@@ -47,7 +47,7 @@ module.exports = (io, socket, users) => {
 
   // SEND MESSAGE
   socket.on("send-message", async (data) => {
-    const { sender, receiver, text } = data;
+    const { sender, receiver, text, type, mediaType } = data;
     const roomId = getRoomId(sender, receiver);
 
     try {
@@ -55,6 +55,8 @@ module.exports = (io, socket, users) => {
         sender, 
         receiver, 
         text,
+        type: type || 'text',
+        mediaType: mediaType || null,
         timestamp: new Date(),
         seen: false
       };
@@ -65,6 +67,8 @@ module.exports = (io, socket, users) => {
           sender,
           receiver,
           text,
+          type: type || 'text',
+          mediaType: mediaType || null,
           seen: false
         });
       } catch (dbErr) {

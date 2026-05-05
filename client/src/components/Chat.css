@@ -297,15 +297,23 @@ html, body, #root {
 
 .chat-header .header-actions {
   display: flex;
-  gap: 10px; /* Space between buttons */
+  gap: 10px;
   align-items: center;
 }
 
 .chat-header .clear-chat-button {
-  background: #ff9800; /* Orange for warning */
+  background: #ff9800 !important;
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
 }
+
 .chat-header .clear-chat-button:hover {
-  background: #fb8c00; /* Darker orange on hover */
+  background: #fb8c00 !important;
+}
+
+.chat-header .clear-chat-button:active {
+  transform: translateY(0) !important;
 }
 /* Messages */
 .chat-messages {
