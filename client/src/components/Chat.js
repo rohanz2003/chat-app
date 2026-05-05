@@ -148,7 +148,7 @@ function Chat() {
     };
 
     syncChat();
-  }, [selectedUser, user, socket, chatHistory]);
+  }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
     if (!user) return;
@@ -267,33 +267,35 @@ function Chat() {
 
   const handleClearAllHistory = () => {
     if (!user) return;
-    if (window.confirm("Are you sure you want to clear ALL chat history? This will only clear it from your browser.")) {
+    if (window.confirm("Are you sure you want to clear ALL chat history?")) {
+      localStorage.removeItem(`chatHistory_${user.email}`);
       setChatHistory({});
       setMessages([]);
       setSelectedUser(null);
-      localStorage.removeItem(`chatHistory_${user.email}`);
-      console.log("🗑️ All chat history cleared locally.");
+      console.log("🗑️ All chat history cleared.");
     }
   };
 
   const handleClearChat = () => {
     if (!user || !selectedUser) return;
 
-    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}? This action cannot be undone.`)) {
-      // Clear displayed messages immediately
-      setMessages([]);
+    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}?`)) {
+      const chatWith = selectedUser;
       
-      // Update chat history and localStorage
+      // Update chat history
       setChatHistory(prev => {
-        const updatedHistory = { ...prev };
-        delete updatedHistory[selectedUser];
+        const updated = { ...prev };
+        delete updated[chatWith];
         
         // Save to localStorage
-        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updatedHistory));
-        console.log(`🗑️ Chat history with ${selectedUser} cleared.`);
+        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+        console.log(`🗑️ Chat with ${chatWith} cleared.`);
         
-        return updatedHistory;
+        return updated;
       });
+      
+      // Clear messages display
+      setMessages([]);
     }
   };
 
