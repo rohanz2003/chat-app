@@ -442,7 +442,7 @@ function Chat() {
 
           <div className="header-actions">
             {selectedUser && ( // Only show clear chat button if a user is selected
-              <button onClick={handleClearChat} className="clear-chat-button">Clear Chat</button>
+              <button onClick={handleClearChat} className="clear-chat-button" title="Clear this chat">🗑️ Clear</button>
             )}
             <button onClick={logout}>Logout</button>
           </div>
