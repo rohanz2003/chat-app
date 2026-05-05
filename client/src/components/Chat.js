@@ -263,7 +263,7 @@ function Chat() {
       text: msgText,
       type: "text",
       tempId: tempId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString() // Ensure current time is captured precisely
     };
 
     // Send to server (don't add locally - wait for server broadcast to avoid duplicates)

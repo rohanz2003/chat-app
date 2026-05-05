@@ -9,7 +9,10 @@ module.exports = (io, socket, users, userProfiles) => {
       return;
     }
 
-    users[userId] = socket.id;
+    if (!users[userId]) {
+      users[userId] = new Set();
+    }
+    users[userId].add(socket.id);
     
     // Join a personal room named after the email to handle multiple tabs/reconnects
     socket.join(userId);

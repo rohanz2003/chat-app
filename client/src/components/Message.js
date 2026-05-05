@@ -1,9 +1,11 @@
 import React from "react";
-import { format } from "date-fns";
 
 function Message({ msg, currentUser }) {
-  const messageTime = msg.timestamp ? format(new Date(msg.timestamp), "p") : ""; // 'p' for short time, e.g., 4:59 PM
-
+  // Using a consistent 12-hour lowercase format
+  const messageTime = msg.timestamp 
+    ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+    : "";
+    
   return (
     <div className={`message ${msg.sender === currentUser ? "sent" : "received"}`}>
       <div className="message-content">{msg.text}</div>

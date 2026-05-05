@@ -49,7 +49,11 @@ module.exports = (io, socket, users) => {
     if (unreadMessages[key]) {
       unreadMessages[key] = 0;
       console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
-      io.emit("unread-update", unreadMessages);
+      
+      // Only notify the user who marked them as read
+      if (users[user1]) {
+        io.to(users[user1]).emit("unread-update", unreadMessages);
+      }
     }
   });
 
@@ -96,7 +100,10 @@ module.exports = (io, socket, users) => {
       io.to(roomId).emit("receive-message", message);
       
       // Send unread count update to all clients
-      io.emit("unread-update", unreadMessages);
+      // Better: Only send to the receiver
+      if (users[receiver]) {
+        io.to(users[receiver]).emit("unread-update", unreadMessages);
+      }
       
       // Send acknowledgment back to sender
       if (callback) callback(true);
@@ -117,7 +124,10 @@ module.exports = (io, socket, users) => {
     if (unreadMessages[unreadKey]) {
       unreadMessages[unreadKey] = 0;
       console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
-      io.emit("unread-update", unreadMessages);
+      
+      if (users[user1]) {
+        io.to(users[user1]).emit("unread-update", unreadMessages);
+      }
     }
   });
 
