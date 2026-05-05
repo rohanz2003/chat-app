@@ -279,19 +279,21 @@ function Chat() {
   const handleClearChat = () => {
     if (!user || !selectedUser) return;
 
-    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}? This action cannot be undone locally.`)) {
+    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}? This action cannot be undone.`)) {
+      // Clear displayed messages immediately
+      setMessages([]);
+      
+      // Update chat history and localStorage
       setChatHistory(prev => {
         const updatedHistory = { ...prev };
-        delete updatedHistory[selectedUser]; // Remove chat history for selected user
+        delete updatedHistory[selectedUser];
         
-        // Save updated history to localStorage
-        if (user) {
-          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updatedHistory));
-        }
+        // Save to localStorage
+        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updatedHistory));
+        console.log(`🗑️ Chat history with ${selectedUser} cleared.`);
+        
         return updatedHistory;
       });
-      setMessages([]); // Clear displayed messages
-      console.log(`🗑️ Chat history with ${selectedUser} cleared locally.`);
     }
   };
 
