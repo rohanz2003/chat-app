@@ -11,6 +11,7 @@ const messageSchema = new mongoose.Schema({
   },
   mediaType: String, // 'image', 'video', 'application'
   tempId: String, // Temporary ID to prevent duplicates
+  timestamp: Date, // Add timestamp to match client
   seen: {
     type: Boolean,
     default: false,

@@ -11,6 +11,9 @@ module.exports = (io, socket, users, userProfiles) => {
 
     users[userId] = socket.id;
     
+    // Join a personal room named after the email to handle multiple tabs/reconnects
+    socket.join(userId);
+
     // Store profile picture if provided
     if (profilePic) {
       userProfiles[userId] = profilePic;

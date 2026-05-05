@@ -122,7 +122,7 @@ function Chat() {
         
         // Avoid duplicates - check by _id, sender+text combo, or tempId
         const isDuplicate = currentHistory.some(m => 
-          m._id === msg._id || 
+          (msg._id && m._id === msg._id) || 
           (m.sender === msg.sender && m.receiver === msg.receiver && m.tempId === msg.tempId) ||
           (m.sender === msg.sender && m.receiver === msg.receiver && JSON.stringify(m.text) === JSON.stringify(msg.text) && m.type === msg.type)
         );
