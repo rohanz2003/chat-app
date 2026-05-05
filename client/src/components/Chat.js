@@ -266,19 +266,7 @@ function Chat() {
       timestamp: new Date().toISOString()
     };
 
-    // Add to local state immediately (so you see your own message)
-    setMessages((prev) => [...prev, newMsg]);
-    setChatHistory((prev) => {
-      const updated = {
-        ...prev,
-        [selectedUser]: [...(prev[selectedUser] || []), newMsg]
-      };
-      // Save sanitized history
-      persistHistory(updated, user?.email);
-      return updated;
-    });
-
-    // Send to server
+    // Send to server (don't add locally - wait for server broadcast to avoid duplicates)
     socket.emit("send-message", newMsg);
 
     setMessage("");
@@ -339,18 +327,7 @@ function Chat() {
           timestamp: new Date().toISOString()
         };
 
-        // Add to local state
-        setMessages((prev) => [...prev, newMsg]);
-        setChatHistory((prev) => {
-          const updated = {
-            ...prev,
-            [selectedUser]: [...(prev[selectedUser] || []), newMsg]
-          };
-        persistHistory(updated, user?.email);
-          return updated;
-        });
-
-        // Send to server with timeout check
+        // Send to server (don't add locally - wait for server broadcast to avoid duplicates)
         socket.emit("send-message", newMsg, (ack) => {
           if (ack) {
             console.log("✅ Media sent successfully");

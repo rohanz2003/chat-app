@@ -12,11 +12,11 @@ const unreadMessages = {};
 module.exports = (io, socket, users) => {
 
   // JOIN ROOM
-  socket.on("join-room", ({ user2 }) => {
-    // Harden: Identify user1 from authenticated socket identity instead of client input
-    const user1 = Object.keys(users).find(key => users[key] === socket.id);
+  socket.on("join-room", ({ user1, user2 }) => {
+    // Use the provided user1 from client (authenticated via socket join)
+    const authenticatedUser = Object.keys(users).find(key => users[key] === socket.id);
     
-    if (!user1) {
+    if (!authenticatedUser || authenticatedUser.toLowerCase() !== user1.toLowerCase()) {
       console.warn(`⚠️ Unauthenticated attempt to join room by socket ${socket.id}`);
       return;
     }
@@ -92,12 +92,8 @@ module.exports = (io, socket, users) => {
       unreadMessages[unreadKey] = (unreadMessages[unreadKey] || 0) + 1;
       console.log(`📨 Unread from ${sender} to ${receiver}: ${unreadMessages[unreadKey]}`);
 
-      // Send to all users in the room
+      // Send to all users in the room (this includes both sender and receiver)
       io.to(roomId).emit("receive-message", message);
-      
-      // Also emit directly to the receiver's personal room (all their tabs)
-      // This ensures they get the message even if they aren't in the specific roomId
-      io.to(receiver).emit("receive-message", message);
       
       // Send unread count update to all clients
       io.emit("unread-update", unreadMessages);
