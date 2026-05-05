@@ -12,7 +12,15 @@ const unreadMessages = {};
 module.exports = (io, socket, users) => {
 
   // JOIN ROOM
-  socket.on("join-room", ({ user1, user2 }) => {
+  socket.on("join-room", ({ user2 }) => {
+    // Harden: Identify user1 from authenticated socket identity instead of client input
+    const user1 = Object.keys(users).find(key => users[key] === socket.id);
+    
+    if (!user1) {
+      console.warn(`⚠️ Unauthenticated attempt to join room by socket ${socket.id}`);
+      return;
+    }
+
     const roomId = getRoomId(user1, user2);
 
     // Leave previous rooms

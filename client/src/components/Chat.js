@@ -21,10 +21,29 @@ function Chat() {
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
   const [sidebarMinimized, setSidebarMinimized] = useState(false); // Sidebar minimize state
   const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
+  const typingTimeoutRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
   const selectedUserRef = useRef(selectedUser);
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
+
+  // Helper to safely persist limited chat history without large media blobs or bloat
+  const persistHistory = (historyObj, currentUserEmail) => {
+    if (!currentUserEmail) return;
+    try {
+      const sanitized = {};
+      Object.keys(historyObj).forEach(key => {
+        // Cap to last 30 messages and strip heavy base64 media content for storage
+        sanitized[key] = historyObj[key].slice(-30).map(m => ({
+          ...m,
+          text: m.type === 'media' ? { ...m.text, data: null, persisted: false } : m.text
+        }));
+      });
+      localStorage.setItem(`chatHistory_${currentUserEmail}`, JSON.stringify(sanitized));
+    } catch (e) {
+      console.error("Failed to persist chat history", e);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -136,10 +155,8 @@ function Chat() {
           ...prev,
           [otherParty]: [...currentHistory, msg]
         };
-        // Save to localStorage
-        if (user) {
-          localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
-        }
+        // Save sanitized history
+        persistHistory(updated, user?.email);
         return updated;
       });
 
@@ -188,22 +205,18 @@ function Chat() {
       
       // 3. Fetch full history from Database (Fixes the "no msg show" issue)
       try {
-        const history = await fetchMessages(user.email, selectedUser);
-        // Only update if history is not empty
-        if (history && history.length > 0) {
-          setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
-          setMessages(prev => {
-            // Merge history with any new messages that arrived via socket
-            const historyIds = new Set(history.map(m => m._id).filter(Boolean));
-            const historyTempIds = new Set(history.map(m => m.tempId).filter(Boolean));
-            const uniqueLiveMessages = prev.filter(m => !historyIds.has(m._id) && !historyTempIds.has(m.tempId));
-            const merged = [...history, ...uniqueLiveMessages];
-            return merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          });
-        } else {
-          // If database is empty, show no messages (they'll appear as sent)
-          setMessages([]);
-        }
+        const history = await fetchMessages(user.email, selectedUser) || [];
+        
+        setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
+        setMessages(prev => {
+          // Merge history with any new messages that arrived via socket while fetching
+          const historyIds = new Set(history.map(m => m._id).filter(Boolean));
+          const historyTempIds = new Set(history.map(m => m.tempId).filter(Boolean));
+          const uniqueLiveMessages = prev.filter(m => !historyIds.has(m._id) && !historyTempIds.has(m.tempId));
+          const merged = [...history, ...uniqueLiveMessages];
+          // Always sort to ensure chronological order regardless of fetch timing
+          return merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        });
       } catch (err) {
         console.error("Failed to fetch messages:", err);
         // Fallback: show no messages
@@ -215,15 +228,17 @@ function Chat() {
   }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
-    if (!user) return;
+    const val = e.target.value;
+    setMessage(val);
 
-    setMessage(e.target.value);
-
-    if (selectedUser) {
+    if (user && selectedUser && socket) {
       socket.emit("typing", { from: user.email, to: selectedUser });
-      setTimeout(() => {
+      
+      // Debounce the stop-typing event and clear previous timers
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
         socket.emit("stop-typing", { from: user.email, to: selectedUser });
-      }, 1000);
+      }, 2000);
     }
   };
 
@@ -257,10 +272,8 @@ function Chat() {
         ...prev,
         [selectedUser]: [...(prev[selectedUser] || []), newMsg]
       };
-      // Save to localStorage
-      if (user) {
-        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
-      }
+      // Save sanitized history
+      persistHistory(updated, user?.email);
       return updated;
     });
 
@@ -332,9 +345,7 @@ function Chat() {
             ...prev,
             [selectedUser]: [...(prev[selectedUser] || []), newMsg]
           };
-          if (user) {
-            localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
-          }
+        persistHistory(updated, user?.email);
           return updated;
         });
 
@@ -424,6 +435,11 @@ function Chat() {
   };
 
   const logout = () => {
+    if (user) {
+      // Clear sensitive data on logout
+      localStorage.removeItem(`chatHistory_${user.email}`);
+      localStorage.removeItem(`userProfiles_${user.email}`);
+    }
     localStorage.removeItem("user");
     navigate("/");
   };
@@ -588,23 +604,23 @@ function Chat() {
           ) : (
             messages.map((msg, i) => (
               <div
-                key={i}
+                key={msg._id || msg.tempId || `msg-${i}`}
                 className={`message ${
                   msg.sender === user.email ? "sent" : "received"
                 }`}
               >
                 {msg.type === "media" ? (
                   <div className="media-message">
-                    {msg.mediaType === "image" && (
+                    {msg.mediaType === "image" && msg.text?.data?.startsWith('data:image/') && (
                       <img src={msg.text.data} alt="Shared" className="media-image" />
                     )}
-                    {msg.mediaType === "video" && (
+                    {msg.mediaType === "video" && msg.text?.data?.startsWith('data:video/') && (
                       <video controls className="media-video">
                         <source src={msg.text.data} type={msg.text.type} />
                         Your browser does not support video playback
                       </video>
                     )}
-                    {msg.mediaType === "application" && (
+                    {msg.mediaType === "application" && msg.text?.data?.startsWith('data:application/') && (
                       <div className="media-file">
                         <span>📎 {msg.text.name}</span>
                         <a href={msg.text.data} download={msg.text.name} className="download-btn">
