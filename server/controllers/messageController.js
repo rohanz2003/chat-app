@@ -8,7 +8,7 @@ exports.getMessages = async (req, res) => {
       { sender: user1, receiver: user2 },
       { sender: user2, receiver: user1 },
     ],
-  }).sort({ createdAt: 1 });
+  }).sort({ timestamp: 1 }); // Sort by timestamp instead of createdAt for consistency
 
   res.json(messages);
 };

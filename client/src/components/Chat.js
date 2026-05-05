@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import useSocket from "../hooks/useSocket";
-import { formatLastSeen } from "../utils/timeFormatter";
+import { formatLastSeen, formatMessageTime } from "../utils/timeFormatter";
 import { fetchMessages } from "../services/messageService";
 import { useNavigate } from "react-router-dom";
 import "./Chat.css";
@@ -394,8 +394,8 @@ function Chat() {
         const updated = { ...prev };
         delete updated[chatWith];
         
-        // Save to localStorage
-        localStorage.setItem(`chatHistory_${user.email}`, JSON.stringify(updated));
+        // Save sanitized history
+        persistHistory(updated, user?.email);
         console.log(`🗑️ Chat with ${chatWith} cleared from localStorage.`);
         
         return updated;
@@ -406,8 +406,13 @@ function Chat() {
       
       // Delete from database via socket (async)
       if (socket && socket.connected) {
-        socket.emit("clear-chat", { user1: user.email, user2: chatWith });
-        console.log(`🗑️ Clearing chat in database with ${chatWith}`);
+        socket.emit("clear-chat", { user1: user.email, user2: chatWith }, (success) => {
+          if (success) {
+            console.log(`✅ Chat cleared from database: ${user.email} ↔ ${chatWith}`);
+          } else {
+            console.error(`❌ Failed to clear chat from database: ${user.email} ↔ ${chatWith}`);
+          }
+        });
       }
     }
   };
@@ -426,9 +431,9 @@ function Chat() {
     console.log(`👤 Selected user: ${u}`);
     setSelectedUser(u);
     
-    // Update messages when user is selected
+    // Update messages when user is selected, ensuring chronological order
     if (chatHistory[u]) {
-      setMessages(chatHistory[u]);
+      setMessages(chatHistory[u].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
     }
   };
 
@@ -583,33 +588,36 @@ function Chat() {
             messages.map((msg, i) => (
               <div
                 key={msg._id || msg.tempId || `msg-${i}`}
-                className={`message ${
-                  msg.sender === user.email ? "sent" : "received"
-                }`}
+                className={`message ${msg.sender === user.email ? "sent" : "received"}`}
               >
-                {msg.type === "media" ? (
-                  <div className="media-message">
-                    {msg.mediaType === "image" && msg.text?.data?.startsWith('data:image/') && (
-                      <img src={msg.text.data} alt="Shared" className="media-image" />
-                    )}
-                    {msg.mediaType === "video" && msg.text?.data?.startsWith('data:video/') && (
-                      <video controls className="media-video">
-                        <source src={msg.text.data} type={msg.text.type} />
-                        Your browser does not support video playback
-                      </video>
-                    )}
-                    {msg.mediaType === "application" && msg.text?.data?.startsWith('data:application/') && (
-                      <div className="media-file">
-                        <span>📎 {msg.text.name}</span>
-                        <a href={msg.text.data} download={msg.text.name} className="download-btn">
-                          Download
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  msg.text
-                )}
+                <div className="message-content">
+                  {msg.type === "media" ? (
+                    <div className="media-message">
+                      {msg.mediaType === "image" && msg.text?.data?.startsWith('data:image/') && (
+                        <img src={msg.text.data} alt="Shared" className="media-image" />
+                      )}
+                      {msg.mediaType === "video" && msg.text?.data?.startsWith('data:video/') && (
+                        <video controls className="media-video">
+                          <source src={msg.text.data} type={msg.text.type} />
+                          Your browser does not support video playback
+                        </video>
+                      )}
+                      {msg.mediaType === "application" && msg.text?.data?.startsWith('data:application/') && (
+                        <div className="media-file">
+                          <span>📎 {msg.text.name}</span>
+                          <a href={msg.text.data} download={msg.text.name} className="download-btn">
+                            Download
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
+                <div className="message-time">
+                  {formatMessageTime(msg.timestamp)}
+                </div>
               </div>
             ))
           )}
