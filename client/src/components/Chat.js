@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import useSocket from "../hooks/useSocket";
 import { formatLastSeen } from "../utils/timeFormatter";
 import { fetchMessages } from "../services/messageService";
@@ -21,6 +21,10 @@ function Chat() {
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
   const [sidebarMinimized, setSidebarMinimized] = useState(false); // Sidebar minimize state
   const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
+
+  // Use Ref to track selectedUser for the socket listener to avoid stale closures
+  const selectedUserRef = useRef(selectedUser);
+  useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -140,19 +144,18 @@ function Chat() {
       });
 
       // If this message is from the currently selected user, update messages display
-      if (selectedUser === otherParty) {
+      if (selectedUserRef.current === otherParty) {
         setMessages((prev) => {
           const isDuplicate = prev.some(m =>
-            m._id === msg._id ||
+            (msg._id && m._id === msg._id) ||
             (m.sender === msg.sender && m.receiver === msg.receiver && m.tempId === msg.tempId) ||
-            (m.sender === msg.sender && m.receiver === msg.receiver && JSON.stringify(m.text) === JSON.stringify(msg.text) && m.type === msg.type)
+            (m.sender === msg.sender && !m._id && !msg.tempId && JSON.stringify(m.text) === JSON.stringify(msg.text))
           );
-          
-          if (isDuplicate) {
-            console.log("⚠️ Duplicate message in display ignored");
-            return prev;
-          }
-          return [...prev, msg];
+
+          if (isDuplicate) return prev;
+          const newMessages = [...prev, msg];
+          // Sort by timestamp to ensure correct order
+          return newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         });
       }
     };
@@ -169,7 +172,7 @@ function Chat() {
       socket.off("chat-cleared");
       socket.off("receive-message", handleIncomingMessage);
     };
-  }, [socket, user, selectedUser]);
+  }, [socket, user]); // Removed selectedUser dependency to keep listener stable
 
   useEffect(() => {
     const syncChat = async () => {
@@ -188,8 +191,15 @@ function Chat() {
         const history = await fetchMessages(user.email, selectedUser);
         // Only update if history is not empty
         if (history && history.length > 0) {
-          setMessages(history);
           setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
+          setMessages(prev => {
+            // Merge history with any new messages that arrived via socket
+            const historyIds = new Set(history.map(m => m._id).filter(Boolean));
+            const historyTempIds = new Set(history.map(m => m.tempId).filter(Boolean));
+            const uniqueLiveMessages = prev.filter(m => !historyIds.has(m._id) && !historyTempIds.has(m.tempId));
+            const merged = [...history, ...uniqueLiveMessages];
+            return merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          });
         } else {
           // If database is empty, show no messages (they'll appear as sent)
           setMessages([]);

@@ -14,14 +14,14 @@ module.exports = (io, socket, users) => {
   // JOIN ROOM
   socket.on("join-room", ({ user1, user2 }) => {
     const roomId = getRoomId(user1, user2);
-    
+
     // Leave previous rooms
-    socket.rooms.forEach(room => {
+    for (const room of socket.rooms) {
       if (room !== socket.id) {
         socket.leave(room);
       }
-    });
-    
+    }
+
     // Join new room
     socket.join(roomId);
     
