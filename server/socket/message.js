@@ -86,6 +86,11 @@ module.exports = (io, socket, users) => {
       // Send to all users in the room
       io.to(roomId).emit("receive-message", message);
       
+      // Also emit directly to receiver if they have a socket connection (even if not in room)
+      if (users[receiver]) {
+        io.to(users[receiver]).emit("receive-message", message);
+      }
+      
       // Send unread count update to all clients
       io.emit("unread-update", unreadMessages);
       

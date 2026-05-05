@@ -191,15 +191,13 @@ function Chat() {
           setMessages(history);
           setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
         } else {
-          // If no messages from database, use local storage
-          const localMessages = chatHistory[selectedUser] || [];
-          setMessages(localMessages);
+          // If database is empty, show no messages (they'll appear as sent)
+          setMessages([]);
         }
       } catch (err) {
         console.error("Failed to fetch messages:", err);
-        // Fallback to local storage if API fails
-        const localMessages = chatHistory[selectedUser] || [];
-        setMessages(localMessages);
+        // Fallback: show no messages
+        setMessages([]);
       }
     };
 
