@@ -35,6 +35,18 @@ function Chat() {
           [userData.email]: userData.profilePic
         }));
       }
+      // Restore profile pictures from localStorage
+      const savedProfiles = localStorage.getItem(`userProfiles_${userData.email}`);
+      if (savedProfiles) {
+        try {
+          setUserProfiles((prev) => ({
+            ...prev,
+            ...JSON.parse(savedProfiles)
+          }));
+        } catch (e) {
+          console.error("Failed to restore profiles", e);
+        }
+      }
       // Restore chat history from localStorage
       const savedChatHistory = localStorage.getItem(`chatHistory_${userData.email}`);
       if (savedChatHistory) {
@@ -77,10 +89,22 @@ function Chat() {
     // Listen for profile picture updates
     socket.on("user-profile-update", (data) => {
       console.log("👤 Profile update:", data);
-      setUserProfiles((prev) => ({
-        ...prev,
-        [data.email]: data.profilePic
-      }));
+      setUserProfiles((prev) => {
+        const updated = {
+          ...prev,
+          [data.email]: data.profilePic
+        };
+        // Save profiles to localStorage
+        if (user) {
+          localStorage.setItem(`userProfiles_${user.email}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+    });
+
+    // Listen for chat cleared event
+    socket.on("chat-cleared", ({ user1, user2 }) => {
+      console.log(`✅ Chat between ${user1} and ${user2} has been cleared from database`);
     });
 
     // Listen for incoming messages globally (even when not in the room)
@@ -142,6 +166,7 @@ function Chat() {
       socket.off("last-seen");
       socket.off("unread-update");
       socket.off("user-profile-update");
+      socket.off("chat-cleared");
       socket.off("receive-message", handleIncomingMessage);
     };
   }, [socket, user, selectedUser]);
@@ -161,12 +186,20 @@ function Chat() {
       // 3. Fetch full history from Database (Fixes the "no msg show" issue)
       try {
         const history = await fetchMessages(user.email, selectedUser);
-        setMessages(history);
-        setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
+        // Only update if history is not empty
+        if (history && history.length > 0) {
+          setMessages(history);
+          setChatHistory(prev => ({ ...prev, [selectedUser]: history }));
+        } else {
+          // If no messages from database, use local storage
+          const localMessages = chatHistory[selectedUser] || [];
+          setMessages(localMessages);
+        }
       } catch (err) {
         console.error("Failed to fetch messages:", err);
         // Fallback to local storage if API fails
-        setMessages(prev => prev || []);
+        const localMessages = chatHistory[selectedUser] || [];
+        setMessages(localMessages);
       }
     };
 
@@ -359,13 +392,7 @@ function Chat() {
     if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}?`)) {
       const chatWith = selectedUser;
       
-      // Delete from database via socket
-      if (socket && socket.connected) {
-        socket.emit("clear-chat", { user1: user.email, user2: chatWith });
-        console.log(`🗑️ Clearing chat in database with ${chatWith}`);
-      }
-      
-      // Update chat history
+      // Update chat history immediately
       setChatHistory(prev => {
         const updated = { ...prev };
         delete updated[chatWith];
@@ -379,6 +406,12 @@ function Chat() {
       
       // Clear messages display
       setMessages([]);
+      
+      // Delete from database via socket (async)
+      if (socket && socket.connected) {
+        socket.emit("clear-chat", { user1: user.email, user2: chatWith });
+        console.log(`🗑️ Clearing chat in database with ${chatWith}`);
+      }
     }
   };
 

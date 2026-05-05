@@ -128,7 +128,7 @@ module.exports = (io, socket, users) => {
   });
 
   // CLEAR CHAT (Delete messages from database)
-  socket.on("clear-chat", async ({ user1, user2 }) => {
+  socket.on("clear-chat", async ({ user1, user2 }, callback) => {
     try {
       // Delete all messages between these two users
       const result = await Message.deleteMany({
@@ -139,10 +139,13 @@ module.exports = (io, socket, users) => {
       });
       
       console.log(`🗑️ Deleted ${result.deletedCount} messages between ${user1} and ${user2}`);
-      socket.emit("chat-cleared", { user1, user2 });
+      io.emit("chat-cleared", { user1, user2 });
+      
+      if (callback) callback(true);
     } catch (err) {
       console.error("❌ Error clearing chat:", err.message);
       socket.emit("error", { message: "Failed to clear chat" });
+      if (callback) callback(false);
     }
   });
 
