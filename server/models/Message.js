@@ -10,6 +10,7 @@ const messageSchema = new mongoose.Schema({
     default: 'text'
   },
   mediaType: String, // 'image', 'video', 'application'
+  tempId: String, // Temporary ID to prevent duplicates
   seen: {
     type: Boolean,
     default: false,

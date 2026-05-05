@@ -46,8 +46,8 @@ module.exports = (io, socket, users) => {
   });
 
   // SEND MESSAGE
-  socket.on("send-message", async (data) => {
-    const { sender, receiver, text, type, mediaType } = data;
+  socket.on("send-message", async (data, callback) => {
+    const { sender, receiver, text, type, mediaType, tempId } = data;
     const roomId = getRoomId(sender, receiver);
 
     try {
@@ -57,6 +57,7 @@ module.exports = (io, socket, users) => {
         text,
         type: type || 'text',
         mediaType: mediaType || null,
+        tempId: tempId,
         timestamp: new Date(),
         seen: false
       };
@@ -69,6 +70,7 @@ module.exports = (io, socket, users) => {
           text,
           type: type || 'text',
           mediaType: mediaType || null,
+          tempId: tempId,
           seen: false
         });
       } catch (dbErr) {
@@ -87,12 +89,16 @@ module.exports = (io, socket, users) => {
       // Send unread count update to all clients
       io.emit("unread-update", unreadMessages);
       
+      // Send acknowledgment back to sender
+      if (callback) callback(true);
+      
       console.log(`✅ Message broadcasted to room ${roomId}`);
-      console.log(`   From: ${sender}, To: ${receiver}, Text: "${text}"`);
+      console.log(`   From: ${sender}, To: ${receiver}, Type: ${type}`);
       
     } catch (err) {
       console.error("❌ Error sending message:", err.message);
       socket.emit("error", { message: "Failed to send message" });
+      if (callback) callback(false);
     }
   });
 

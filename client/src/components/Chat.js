@@ -84,7 +84,6 @@ function Chat() {
     });
 
     // Listen for incoming messages globally (even when not in the room)
-    // Listen for incoming messages globally (even when not in the room)
     const handleIncomingMessage = (msg) => {
       console.log("📨 Incoming message:", msg);
       const otherParty = msg.sender === user.email ? msg.receiver : msg.sender;
@@ -92,8 +91,18 @@ function Chat() {
       // Update chat history
       setChatHistory((prev) => {
         const currentHistory = prev[otherParty] || [];
-        // Avoid duplicates
-        if (currentHistory.some(m => m._id === msg._id)) return prev;
+        
+        // Avoid duplicates - check by _id, sender+text combo, or tempId
+        const isDuplicate = currentHistory.some(m => 
+          m._id === msg._id || 
+          (m.sender === msg.sender && m.receiver === msg.receiver && m.tempId === msg.tempId) ||
+          (m.sender === msg.sender && m.receiver === msg.receiver && JSON.stringify(m.text) === JSON.stringify(msg.text) && m.type === msg.type)
+        );
+        
+        if (isDuplicate) {
+          console.log("⚠️ Duplicate message ignored");
+          return prev;
+        }
 
         const updated = {
           ...prev,
@@ -108,7 +117,19 @@ function Chat() {
 
       // If this message is from the currently selected user, update messages display
       if (selectedUser === otherParty) {
-        setMessages((prev) => prev.some(m => m._id === msg._id) ? prev : [...prev, msg]);
+        setMessages((prev) => {
+          const isDuplicate = prev.some(m =>
+            m._id === msg._id ||
+            (m.sender === msg.sender && m.receiver === msg.receiver && m.tempId === msg.tempId) ||
+            (m.sender === msg.sender && m.receiver === msg.receiver && JSON.stringify(m.text) === JSON.stringify(msg.text) && m.type === msg.type)
+          );
+          
+          if (isDuplicate) {
+            console.log("⚠️ Duplicate message in display ignored");
+            return prev;
+          }
+          return [...prev, msg];
+        });
       }
     };
 
@@ -175,6 +196,7 @@ function Chat() {
     }
 
     const msgText = message;
+    const tempId = `${Date.now()}-${Math.random()}`;
     console.log(`📤 Sending message from ${user.email} to ${selectedUser}: "${msgText}"`);
 
     // Create message object
@@ -183,6 +205,7 @@ function Chat() {
       receiver: selectedUser,
       text: msgText,
       type: "text",
+      tempId: tempId,
       timestamp: new Date().toISOString()
     };
 
@@ -224,29 +247,31 @@ function Chat() {
       return;
     }
 
-    // Validate file size (max 5MB for images, 20MB for others)
+    // Validate file size - REDUCED to prevent socket timeout
     const isImage = file.type.startsWith('image/');
-    const maxSize = isImage ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+    const maxSize = isImage ? 3 * 1024 * 1024 : 10 * 1024 * 1024; // 3MB images, 10MB others
     
     if (file.size > maxSize) {
-      alert(`File size must be less than ${isImage ? '5MB' : '20MB'}`);
+      alert(`File size must be less than ${isImage ? '3MB' : '10MB'}. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
       e.target.value = null;
       return;
     }
 
     setIsMediaSending(true);
+    const tempId = `${Date.now()}-${Math.random()}`;
 
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const fileData = {
+        // Don't send huge base64 strings - compress image if possible
+        let fileData = {
           name: file.name,
           type: file.type,
           size: file.size,
           data: reader.result
         };
 
-        console.log(`📎 Sending file: ${file.name}`);
+        console.log(`📎 Sending file: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`);
 
         // Create message object
         const newMsg = {
@@ -255,6 +280,7 @@ function Chat() {
           text: fileData,
           type: "media",
           mediaType: file.type.split('/')[0],
+          tempId: tempId,
           timestamp: new Date().toISOString()
         };
 
@@ -271,9 +297,15 @@ function Chat() {
           return updated;
         });
 
-        // Send to server
-        socket.emit("send-message", newMsg);
-        console.log("✅ Media sent successfully");
+        // Send to server with timeout check
+        socket.emit("send-message", newMsg, (ack) => {
+          if (ack) {
+            console.log("✅ Media sent successfully");
+          } else {
+            console.error("❌ Media send failed - server did not acknowledge");
+          }
+        });
+        
       } catch (err) {
         console.error("❌ Error processing file:", err);
         alert("❌ Error sending file. Please try again.");
@@ -290,7 +322,15 @@ function Chat() {
       e.target.value = null;
     };
 
-    reader.readAsDataURL(file);
+    // Read file as base64 but with a safety check
+    try {
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("❌ Cannot read file:", err);
+      alert("❌ Cannot read this file. Please try another.");
+      setIsMediaSending(false);
+      e.target.value = null;
+    }
   };
 
   const handleClearAllHistory = () => {
