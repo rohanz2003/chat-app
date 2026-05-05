@@ -143,12 +143,12 @@ function Chat() {
       } catch (err) {
         console.error("Failed to fetch messages:", err);
         // Fallback to local storage if API fails
-        setMessages(chatHistory[selectedUser] || []);
+        setMessages(prev => prev || []);
       }
     };
 
     syncChat();
-  }, [selectedUser, user, socket]);
+  }, [selectedUser, user, socket, chatHistory]);
 
   const handleTyping = (e) => {
     if (!user) return;
