@@ -164,7 +164,7 @@ function Chat() {
         return updated;
       });
 
-      // If this message is from the currently selected user, update messages display
+      // If this message is from the currently selected user, update messages display and mark as read
       if (selectedUserRef.current && selectedUserRef.current.toLowerCase() === otherParty) {
         setMessages((prev) => {
           const isDuplicate = prev.some(m =>
@@ -175,6 +175,9 @@ function Chat() {
           if (isDuplicate) return prev;
           return [...prev, msg].sort((a, b) => new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt));
         });
+        
+        // Mark message as read since user is currently viewing this chat
+        socket.emit("mark-as-read", { user1: user.email, user2: otherParty });
       }
     };
 
