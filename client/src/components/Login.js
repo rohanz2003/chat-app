@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  signInWithPopup
+  signInWithPopup,
+  GoogleAuthProvider
 } from "firebase/auth";
 import "./Login.css";
 
@@ -59,7 +60,10 @@ function Login() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      // Fallback: if `googleProvider` wasn't exported for some reason,
+      // create a provider locally to avoid build/runtime failures.
+      const provider = googleProvider || new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
       if (!validateGmail(result.user.email)) {
         setError("Access restricted to Gmail accounts only.");
         await auth.signOut();
