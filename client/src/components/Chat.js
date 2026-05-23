@@ -462,8 +462,8 @@ function Chat() {
 
   // Get unread count for a user
   const getUnreadCount = (otherUser) => {
-    if (!user) return 0;
-    const key = `${otherUser}_${user.email}`;
+    if (!user || !otherUser) return 0;
+    const key = `${otherUser.toLowerCase()}_${user.email.toLowerCase()}`;
     return unreadMessages[key] || 0;
   };
 
