@@ -18,14 +18,16 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        // Map Firebase user to your application format
-        setUser({
+        const mappedUser = {
           email: currentUser.email,
           profilePic: currentUser.photoURL,
           uid: currentUser.uid
-        });
+        };
+        setUser(mappedUser);
+        localStorage.setItem("user", JSON.stringify(mappedUser));
       } else {
         setUser(null);
+        localStorage.removeItem("user");
       }
       setLoading(false);
     });
@@ -34,13 +36,13 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={!user ? <Login /> : <Navigate to="/chat" />} />
+      <Route path="/" element={<Login />} />
 
       <Route
         path="/chat"
         element={
           <PrivateRoute loading={loading} user={user}>
-            <Chat />
+            <Chat user={user} />
           </PrivateRoute>
         }
       />

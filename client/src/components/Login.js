@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { auth, googleProvider } from "../firebase";
+import { useNavigate } from "react-router-dom";
+import { auth } from "../firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  signInWithPopup,
-  GoogleAuthProvider
+  signOut,
 } from "firebase/auth";
 import "./Login.css";
 
@@ -15,6 +15,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const validateGmail = (email) => {
     return email.toLowerCase().endsWith("@gmail.com");
@@ -41,40 +42,19 @@ function Login() {
         
         if (!userCredential.user.emailVerified) {
           setError("Please verify your email before logging in. Check your Gmail inbox.");
-          await auth.signOut();
+          await signOut(auth);
           return;
         }
 
-        // Update localStorage for compatibility with existing Chat.js logic
-        localStorage.setItem("user", JSON.stringify({
+        const signedInUser = {
           email: userCredential.user.email,
           uid: userCredential.user.uid,
           profilePic: userCredential.user.photoURL
-        }));
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+        };
 
-  const handleGoogleLogin = async () => {
-    setError("");
-    try {
-      // Fallback: if `googleProvider` wasn't exported for some reason,
-      // create a provider locally to avoid build/runtime failures.
-      const provider = googleProvider || new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      if (!validateGmail(result.user.email)) {
-        setError("Access restricted to Gmail accounts only.");
-        await auth.signOut();
-        return;
+        localStorage.setItem("user", JSON.stringify(signedInUser));
+        navigate("/chat");
       }
-
-      localStorage.setItem("user", JSON.stringify({
-        email: result.user.email,
-        uid: result.user.uid,
-        profilePic: result.user.photoURL
-      }));
     } catch (err) {
       setError(err.message);
     }
@@ -108,13 +88,6 @@ function Login() {
             {isRegistering ? "Register with Gmail" : "Sign In"}
           </button>
         </form>
-
-        <div className="divider"><span>OR</span></div>
-
-        <button className="google-btn" onClick={handleGoogleLogin} type="button">
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-          Continue with Google
-        </button>
 
         <p className="toggle-text">
           {isRegistering ? "Already have a verified account?" : "Need a secure account?"}{" "}

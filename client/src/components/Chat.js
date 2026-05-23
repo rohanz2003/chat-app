@@ -23,7 +23,7 @@ import { fetchMessages } from "../services/messageService";
 import { useNavigate } from "react-router-dom";
 import "./Chat.css";
 
-function Chat() {
+function Chat({ user: currentUser }) {
   const socket = useSocket();
   const navigate = useNavigate();
 
@@ -86,18 +86,36 @@ function Chat() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) navigate("/");
-    else {
-      const userData = JSON.parse(storedUser);
+    if (currentUser) {
+      const userData = {
+        email: currentUser.email,
+        profilePic: currentUser.profilePic,
+        uid: currentUser.uid
+      };
       setUser(userData);
-      // Store current user's profile
+      localStorage.setItem("user", JSON.stringify(userData));
       if (userData.profilePic) {
         setUserProfiles((prev) => ({
           ...prev,
           [userData.email]: userData.profilePic
         }));
       }
-      // Restore profile pictures from localStorage
+    } else if (!storedUser) {
+      navigate("/");
+      return;
+    } else {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      if (userData.profilePic) {
+        setUserProfiles((prev) => ({
+          ...prev,
+          [userData.email]: userData.profilePic
+        }));
+      }
+    }
+
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
       const savedProfiles = localStorage.getItem(`userProfiles_${userData.email}`);
       if (savedProfiles) {
         try {
@@ -109,7 +127,6 @@ function Chat() {
           console.error("Failed to restore profiles", e);
         }
       }
-      // Restore chat history from localStorage
       const savedChatHistory = localStorage.getItem(`chatHistory_${userData.email}`);
       if (savedChatHistory) {
         try {
@@ -119,7 +136,7 @@ function Chat() {
         }
       }
     }
-  }, [navigate]);
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     if (!user || !socket) return;
@@ -427,10 +444,7 @@ function Chat() {
 
   const logout = () => {
     auth.signOut().then(() => {
-      if (user) {
-        localStorage.removeItem(`chatHistory_${user.email}`);
-        localStorage.removeItem(`userProfiles_${user.email}`);
-      }
+      localStorage.removeItem("user");
       navigate("/");
     });
   };
