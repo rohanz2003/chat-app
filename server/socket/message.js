@@ -13,8 +13,10 @@ module.exports = (io, socket, users) => {
 
   // JOIN ROOM
   socket.on("join-room", ({ user1, user2 }) => {
-    // Use the provided user1 from client (authenticated via socket join)
-    const authenticatedUser = Object.keys(users).find(key => users[key] === socket.id);
+    // Find the user whose Set of socket IDs contains this socket.id
+    const authenticatedUser = Object.keys(users).find(key => 
+      users[key] instanceof Set ? users[key].has(socket.id) : users[key] === socket.id
+    );
     
     if (!authenticatedUser || authenticatedUser.toLowerCase() !== user1.toLowerCase()) {
       console.warn(`⚠️ Unauthenticated attempt to join room by socket ${socket.id}`);
@@ -51,8 +53,10 @@ module.exports = (io, socket, users) => {
       console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
       
       // Only notify the user who marked them as read
-      if (users[user1]) {
-        io.to(users[user1]).emit("unread-update", unreadMessages);
+      // Use the personal room (email) instead of the users object Set
+      const target = user1.toLowerCase().trim();
+      if (users[target]) {
+        io.to(target).emit("unread-update", unreadMessages);
       }
     }
   });
@@ -101,8 +105,9 @@ module.exports = (io, socket, users) => {
       
       // Send unread count update to all clients
       // Better: Only send to the receiver
-      if (users[receiver]) {
-        io.to(users[receiver]).emit("unread-update", unreadMessages);
+      const target = receiver.toLowerCase().trim();
+      if (users[target]) {
+        io.to(target).emit("unread-update", unreadMessages);
       }
       
       // Send acknowledgment back to sender
@@ -125,8 +130,9 @@ module.exports = (io, socket, users) => {
       unreadMessages[unreadKey] = 0;
       console.log(`✓✓ Marked messages as read for ${user1} from ${user2}`);
       
-      if (users[user1]) {
-        io.to(users[user1]).emit("unread-update", unreadMessages);
+      const target = user1.toLowerCase().trim();
+      if (users[target]) {
+        io.to(target).emit("unread-update", unreadMessages);
       }
     }
   });
@@ -171,7 +177,10 @@ module.exports = (io, socket, users) => {
   // Clean up on disconnect
   socket.on("disconnect", () => {
     for (let roomId in roomUsers) {
-      roomUsers[roomId] = roomUsers[roomId].filter(user => users[user] !== socket.id);
+      roomUsers[roomId] = roomUsers[roomId].filter(user => {
+        const userEntry = users[user.toLowerCase().trim()];
+        return userEntry instanceof Set ? !userEntry.has(socket.id) : userEntry !== socket.id;
+      });
       if (roomUsers[roomId].length === 0) {
         delete roomUsers[roomId];
       }

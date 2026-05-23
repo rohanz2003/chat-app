@@ -1,4 +1,21 @@
 import React, { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search,
+  MessageCircle,
+  PlusCircle,
+  BellRing,
+  Settings,
+  Smile,
+  Paperclip,
+  Home,
+  Send,
+  Trash2,
+  Users,
+  Layers,
+  Sun,
+  Moon
+} from "lucide-react";
 import useSocket from "../hooks/useSocket";
 import { formatLastSeen, formatMessageTime } from "../utils/timeFormatter";
 import { fetchMessages } from "../services/messageService";
@@ -11,6 +28,7 @@ function Chat() {
 
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [chatHistory, setChatHistory] = useState({}); // Store all chats by user
   const [typingUser, setTypingUser] = useState(null);
@@ -19,13 +37,33 @@ function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState({}); // Track unread counts
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
-  const [sidebarMinimized, setSidebarMinimized] = useState(false); // Sidebar minimize state
   const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const typingTimeoutRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
   const selectedUserRef = useRef(selectedUser);
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", isDarkMode);
+    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+
+  const formatDay = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return date.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric"
+    });
+  };
 
   // Helper to safely persist limited chat history without large media blobs or bloat
   const persistHistory = (historyObj, currentUserEmail) => {
@@ -386,40 +424,6 @@ function Chat() {
     }
   };
 
-  const handleClearChat = () => {
-    if (!user || !selectedUser) return;
-
-    if (window.confirm(`Are you sure you want to clear the chat history with ${selectedUser}?`)) {
-      const chatWith = selectedUser;
-      
-      // Update chat history immediately
-      setChatHistory(prev => {
-        const updated = { ...prev };
-        delete updated[chatWith];
-        
-        // Save sanitized history
-        persistHistory(updated, user?.email);
-        console.log(`🗑️ Chat with ${chatWith} cleared from localStorage.`);
-        
-        return updated;
-      });
-      
-      // Clear messages display
-      setMessages([]);
-      
-      // Delete from database via socket (async)
-      if (socket && socket.connected) {
-        socket.emit("clear-chat", { user1: user.email, user2: chatWith }, (success) => {
-          if (success) {
-            console.log(`✅ Chat cleared from database: ${user.email} ↔ ${chatWith}`);
-          } else {
-            console.error(`❌ Failed to clear chat from database: ${user.email} ↔ ${chatWith}`);
-          }
-        });
-      }
-    }
-  };
-
   const logout = () => {
     if (user) {
       // Clear sensitive data on logout
@@ -441,7 +445,9 @@ function Chat() {
   };
 
   // Filter out current user from the user list
-  const otherOnlineUsers = onlineUsers.filter(u => u !== user?.email);
+  const otherOnlineUsers = onlineUsers.filter(u => 
+    u.toLowerCase().trim() !== user?.email?.toLowerCase().trim()
+  );
   
   // Get recent chats sorted by latest message
   const recentChats = Object.keys(chatHistory)
@@ -461,189 +467,274 @@ function Chat() {
     return unreadMessages[key] || 0;
   };
 
+  const searchValue = searchTerm.trim().toLowerCase();
+  const filteredRecentChats = recentChats.filter((u) =>
+    u.toLowerCase().includes(searchValue)
+  );
+  const filteredOnlineUsers = otherOnlineUsers.filter((u) =>
+    u.toLowerCase().includes(searchValue)
+  );
+
   if (!user) return <h2>Loading...</h2>;
 
   return (
-    <div className="chat-layout">
-
-      {/* SIDEBAR */}
-      <div className={`sidebar ${sidebarMinimized ? 'minimized' : ''}`}>
-        <div className="sidebar-header">
-          <h3>💬 Chats</h3>
-          <div className="sidebar-header-right">
-            <button onClick={() => setSidebarMinimized(!sidebarMinimized)} className="minimize-btn" title={sidebarMinimized ? "Maximize" : "Minimize"}>
-              {sidebarMinimized ? '→' : '←'}
-            </button>
-            <button onClick={handleClearAllHistory} className="clear-all-btn" title="Clear All History">🗑️</button>
-            {!sidebarMinimized && <span className="user-badge">{user.email.split('@')[0]}</span>}
+    <div className={`chat-layout ${isDarkMode ? "dark" : ""}`}>
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <div className="brand-head">
+            <div className="brand-mark">C</div>
+            <div className="brand-copy">
+              <strong>Connect</strong>
+              <span>Enterprise messenger</span>
+            </div>
           </div>
+          <button
+            className="theme-toggle"
+            onClick={() => setIsDarkMode((prev) => !prev)}
+            aria-label="Toggle theme"
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
 
-        {/* RECENT CHATS SECTION */}
-        {recentChats.length > 0 && (
-          <div className="section">
-            <div className="section-title">Recent Chats</div>
-            {recentChats.map((u, i) => {
-              const unreadCount = getUnreadCount(u);
-              return (
-                <div 
-                  key={`recent-${i}`}
-                  className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
-                  onClick={() => handleUserSelect(u)}
-                >
-                  {unreadCount > 0 && <div className="unread-dot"></div>}
-                  {userProfiles[u] && (
-                    <img src={userProfiles[u]} alt={u} className="user-avatar" />
-                  )}
-                  <div className="user-info">
-                    <div className="user-name-with-badge">
-                      {u}
-                      {unreadCount > 0 && (
-                        <span className="unread-badge">{unreadCount}</span>
-                      )}
-                    </div>
-                    <div className="user-status">
-                      {isUserOnline(u) ? '🟢 Online' : '⚫ Offline'}
-                    </div>
-                  </div>
-                  {isUserOnline(u) && <span className="online-dot">●</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ONLINE USERS SECTION */}
-        <div className="section">
-          <div className="section-title">Online Users</div>
-          {otherOnlineUsers.length === 0 ? (
-            <div className="no-users">No users online</div>
-          ) : (
-            otherOnlineUsers.map((u, i) => {
-              const unreadCount = getUnreadCount(u);
-              return (
-                <div 
-                  key={`online-${i}`}
-                  className={`user-item ${selectedUser === u ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}`}
-                  onClick={() => handleUserSelect(u)}
-                >
-                  {unreadCount > 0 && <div className="unread-dot"></div>}
-                  {userProfiles[u] && (
-                    <img src={userProfiles[u]} alt={u} className="user-avatar" />
-                  )}
-                  <div className="user-info">
-                    <div className="user-name-with-badge">
-                      {u}
-                      {unreadCount > 0 && (
-                        <span className="unread-badge">{unreadCount}</span>
-                      )}
-                    </div>
-                    <div className="user-status">Online</div>
-                  </div>
-                  <span className="online-dot">●</span>
-                </div>
-              );
-            })
-          )}
+        <div className="sidebar-tabs">
+          <button className="tab active">
+            <MessageCircle size={16} /> Chats
+          </button>
         </div>
-      </div>
 
-      {/* MAIN CHAT */}
-      <div className="chat-container">
+        <div className="sidebar-search">
+          <Search size={16} />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search conversations"
+          />
+        </div>
 
-        {/* HEADER */}
-        <div className="chat-header">
-          <div className="header-user-info">
-            {selectedUser && userProfiles[selectedUser] && (
-              <img src={userProfiles[selectedUser]} alt="Profile" className="header-profile-pic" />
-            )}
+        <div className="profile-card">
+          <div className="profile-card-main">
+            <img
+              src={user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"}
+              alt={user.email}
+              className="profile-card-avatar"
+            />
             <div>
-              {selectedUser ? (
-                <>
-                  <h2>{selectedUser}</h2>
-                  <div className="status">
-                    {isUserOnline(selectedUser)
-                      ? "🟢 Online"
-                      : formatLastSeen(lastSeen[selectedUser])}
-                  </div>
-                </>
-              ) : (
-                <h2>Select a chat to start messaging</h2>
-              )}
+              <span className="profile-name">{user.email.split("@")[0]}</span>
+              <span className="profile-meta">
+                {isUserOnline(user.email) ? "Online" : "Offline"}
+              </span>
             </div>
           </div>
+          <button
+            className="primary-btn"
+            onClick={() => setSelectedUser(null)}
+          >
+            <PlusCircle size={16} /> New Message
+          </button>
+        </div>
 
-          <div className="header-actions">
-            {selectedUser && ( // Only show clear chat button if a user is selected
-              <button onClick={handleClearChat} className="clear-chat-button" title="Clear this chat">🗑️ Clear</button>
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Recent Chats</div>
+          <div className="sidebar-list">
+            {filteredRecentChats.length > 0 ? filteredRecentChats.map((u, i) => {
+              const unreadCount = getUnreadCount(u);
+              return (
+                <button
+                  key={`recent-${i}`}
+                  className={`user-item ${selectedUser === u ? "active" : ""}`}
+                  onClick={() => handleUserSelect(u)}
+                >
+                  <div className="avatar-wrap">
+                    <img
+                      src={userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"}
+                      alt={u}
+                      className="user-avatar"
+                    />
+                    {isUserOnline(u) && <span className="status-dot" />}
+                  </div>
+                  <div className="user-item-copy">
+                    <span className="user-name">{u}</span>
+                    <span className="user-last">{isUserOnline(u) ? "Online" : "Last active"}</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="unread-badge">{unreadCount}</span>
+                  )}
+                </button>
+              );
+            }) : (
+              <div className="empty-list">Try searching or start a new conversation.</div>
             )}
-            <button onClick={logout}>Logout</button>
           </div>
         </div>
 
-        {/* MESSAGES */}
-        <div className="chat-messages">
-          {messages.length === 0 ? (
-            <div className="empty-chat">
-              {selectedUser ? '👋 Start the conversation!' : '👀 No chat selected'}
-            </div>
-          ) : (
-            messages.map((msg, i) => (
-              <div
-                key={msg._id || msg.tempId || `msg-${i}`}
-                className={`message ${msg.sender === user.email ? "sent" : "received"}`}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Online Users</div>
+          <div className="sidebar-list">
+            {filteredOnlineUsers.length > 0 ? filteredOnlineUsers.map((u, i) => (
+              <button
+                key={`online-${i}`}
+                className={`user-item ${selectedUser === u ? "active" : ""}`}
+                onClick={() => handleUserSelect(u)}
               >
-                <div className="message-content">
-                  {msg.type === "media" ? (
-                    <div className="media-message">
-                      {msg.mediaType === "image" && msg.text?.data?.startsWith('data:image/') && (
-                        <img src={msg.text.data} alt="Shared" className="media-image" />
-                      )}
-                      {msg.mediaType === "video" && msg.text?.data?.startsWith('data:video/') && (
-                        <video controls className="media-video">
-                          <source src={msg.text.data} type={msg.text.type} />
-                          Your browser does not support video playback
-                        </video>
-                      )}
-                      {msg.mediaType === "application" && msg.text?.data?.startsWith('data:application/') && (
-                        <div className="media-file">
-                          <span>📎 {msg.text.name}</span>
-                          <a href={msg.text.data} download={msg.text.name} className="download-btn">
-                            Download
-                          </a>
+                <div className="avatar-wrap">
+                  <img
+                    src={userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"}
+                    alt={u}
+                    className="user-avatar"
+                  />
+                  <span className="status-dot online" />
+                </div>
+                <div className="user-item-copy">
+                  <span className="user-name">{u}</span>
+                  <span className="user-last">Available now</span>
+                </div>
+                {getUnreadCount(u) > 0 && (
+                  <span className="unread-badge">{getUnreadCount(u)}</span>
+                )}
+              </button>
+            )) : (
+              <div className="empty-list">No contacts are available right now.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="sidebar-actions">
+          <button className="secondary-btn" onClick={handleClearAllHistory}>
+            <Trash2 size={16} /> Archive
+          </button>
+          <button className="secondary-btn">
+            <BellRing size={16} /> Help
+          </button>
+        </div>
+      </aside>
+
+      <main className="chat-panel">
+        <div className="chat-panel-header">
+          <div className="chat-panel-title">
+            <div className="header-avatar-wrap">
+              <img
+                src={selectedUser ? userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80" : "https://images.unsplash.com/photo-1503416997304-3cc562acfdc5?auto=format&fit=crop&w=200&q=80"}
+                alt={selectedUser || "Start"}
+                className="header-avatar"
+              />
+            </div>
+            <div>
+              <h3>{selectedUser || "Welcome to Connect"}</h3>
+              <p>{selectedUser ? (isUserOnline(selectedUser) ? "Online" : formatLastSeen(lastSeen[selectedUser])) : "Choose a conversation or create a new one."}</p>
+            </div>
+          </div>
+          <div className="chat-header-actions">
+            <button className="icon-btn" title="More options">
+              <Settings size={18} />
+            </button>
+            <button className="logout-btn" onClick={logout}>Logout</button>
+          </div>
+        </div>
+
+        <div className="chat-panel-body">
+          {selectedUser ? (
+            <div className="chat-messages">
+              {messages.length === 0 ? (
+                <div className="empty-chat-state">
+                  <MessageCircle size={32} />
+                  <h4>No messages yet</h4>
+                  <p>Send the first message to start the conversation.</p>
+                </div>
+              ) : (
+                messages.map((msg, i) => {
+                  const previousMsg = messages[i - 1];
+                  const showDay = !previousMsg || new Date(msg.timestamp || msg.createdAt).toDateString() !== new Date(previousMsg.timestamp || previousMsg.createdAt).toDateString();
+                  return (
+                    <React.Fragment key={msg._id || msg.tempId || `msg-${i}`}>
+                      {showDay && (
+                        <div className="day-separator">
+                          <span>{formatDay(msg.timestamp || msg.createdAt)}</span>
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    msg.text
-                  )}
-                </div>
-                <div className="message-details">
-                  <span className="message-time">
-                    {formatMessageTime(msg.timestamp || msg.createdAt)}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className={`message ${msg.sender === user.email ? "sent" : "received"}`}
+                      >
+                        <div className="message-content">
+                          {msg.type === "media" ? (
+                            <div className="media-message">
+                              {msg.mediaType === "image" && msg.text?.data?.startsWith("data:image/") && (
+                                <img src={msg.text.data} alt="Shared" className="media-image" />
+                              )}
+                              {msg.mediaType === "video" && msg.text?.data?.startsWith("data:video/") && (
+                                <video controls className="media-video">
+                                  <source src={msg.text.data} type={msg.text.type} />
+                                  Your browser does not support video playback
+                                </video>
+                              )}
+                              {msg.mediaType === "application" && msg.text?.data?.startsWith("data:application/") && (
+                                <div className="media-file">
+                                  <span>📎 {msg.text.name}</span>
+                                  <a href={msg.text.data} download={msg.text.name} className="download-btn">Download</a>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            msg.text
+                          )}
+                        </div>
+                        <div className="message-meta">
+                          <span>{formatMessageTime(msg.timestamp || msg.createdAt)}</span>
+                          {msg.sender === user.email && <span className="read-receipt">✓✓</span>}
+                        </div>
+                      </motion.div>
+                    </React.Fragment>
+                  );
+                })
+              )}
 
-          {typingUser && typingUser !== user.email && (
-            <div className="typing">✍️ {typingUser} is typing...</div>
+              <AnimatePresence>
+                {typingUser && typingUser !== user.email && (
+                  <motion.div
+                    className="typing-indicator"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                  >
+                    <span />
+                    <span />
+                    <span />
+                    {typingUser} is typing...
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="dashboard-empty-state">
+              <div className="welcome-panel">
+                <h2>Welcome back, {user.email.split("@")[0]} 👋</h2>
+                <p>Pick a chat or start messaging a colleague from the sidebar.</p>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* INPUT */}
-        <div className="chat-input">
+        <div className="chat-panel-footer">
+          <button className="secondary-icon-btn" title="Emoji">
+            <Smile size={18} />
+          </button>
+          <button className="secondary-icon-btn" title="Attach file">
+            <Paperclip size={18} />
+          </button>
           <input
             type="text"
-            placeholder={selectedUser ? "Type a message..." : "Select a user first"}
+            placeholder={selectedUser ? "Write a message..." : "Select a conversation to send a message"}
             value={message}
             onChange={handleTyping}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             disabled={!selectedUser}
           />
-          <label htmlFor="media-input" className="media-button" title="Share photo, video, or file">
-            📎
+          <label htmlFor="media-input" className="secondary-icon-btn" title="Upload media">
+            <PlusCircle size={18} />
           </label>
           <input
             id="media-input"
@@ -651,12 +742,80 @@ function Chat() {
             accept="image/*,video/*,.pdf,.doc,.docx,.txt"
             onChange={handleMediaShare}
             disabled={!selectedUser}
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           />
-          <button onClick={sendMessage} disabled={!selectedUser}>➤</button>
+          <button className="send-btn" onClick={sendMessage} disabled={!selectedUser}>
+            <Send size={18} />
+          </button>
+        </div>
+      </main>
+
+      <aside className="dashboard-panel">
+        <div className="dashboard-card welcome-card">
+          <div className="dashboard-card-head">
+            <div>
+              <span className="eyebrow">Good day</span>
+              <h4>Ready to connect?</h4>
+            </div>
+            <Home size={20} />
+          </div>
+          <p>Start a new chat, review mentions, and stay updated with your team activity.</p>
         </div>
 
-      </div>
+        <div className="dashboard-card stats-card">
+          <div className="dashboard-card-head">
+            <span className="eyebrow">Analytics</span>
+            <span>Live insights</span>
+          </div>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span>24</span>
+              <small>Active chats</small>
+            </div>
+            <div className="stat-item">
+              <span>8</span>
+              <small>Unread</small>
+            </div>
+            <div className="stat-item">
+              <span>3</span>
+              <small>New contacts</small>
+            </div>
+          </div>
+          <div className="bar-chart" />
+        </div>
+
+        <div className="dashboard-card actions-card">
+          <div className="dashboard-card-head">
+            <span className="eyebrow">Quick actions</span>
+            <span>Faster workflow</span>
+          </div>
+          <div className="action-list">
+            <button className="action-pill"><PlusCircle size={16} /> Start new chat</button>
+            <button className="action-pill"><Users size={16} /> Invite team member</button>
+            <button className="action-pill"><Layers size={16} /> View activity</button>
+          </div>
+        </div>
+      </aside>
+
+      <AnimatePresence>
+        {isMediaSending && (
+          <motion.div
+            className="toast-notice"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+          >
+            Uploading file...
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <nav className="bottom-nav">
+        <button className="bottom-nav-btn active"><MessageCircle size={18} /><span>Chat</span></button>
+        <button className="bottom-nav-btn"><Users size={18} /><span>Contacts</span></button>
+        <button className="bottom-nav-btn"><BellRing size={18} /><span>Alerts</span></button>
+        <button className="bottom-nav-btn"><Settings size={18} /><span>More</span></button>
+      </nav>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 module.exports = (io, socket, users, userProfiles) => {
   socket.on("join", (data) => {
     // Handle both old string format and new object format
-    const userId = typeof data === 'string' ? data : data?.email;
+    let userId = typeof data === 'string' ? data : data?.email;
     const profilePic = typeof data === 'object' ? data?.profilePic : null;
 
     if (!userId || userId.trim() === "") {
       console.log("❌ Invalid userId received");
       return;
     }
+    userId = userId.trim().toLowerCase();
 
     if (!users[userId]) {
       users[userId] = new Set();
