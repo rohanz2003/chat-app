@@ -16,6 +16,7 @@ import {
   Sun,
   Moon
 } from "lucide-react";
+import { auth } from "../firebase";
 import useSocket from "../hooks/useSocket";
 import { formatLastSeen, formatMessageTime } from "../utils/timeFormatter";
 import { fetchMessages } from "../services/messageService";
@@ -425,13 +426,13 @@ function Chat() {
   };
 
   const logout = () => {
-    if (user) {
-      // Clear sensitive data on logout
-      localStorage.removeItem(`chatHistory_${user.email}`);
-      localStorage.removeItem(`userProfiles_${user.email}`);
-    }
-    localStorage.removeItem("user");
-    navigate("/");
+    auth.signOut().then(() => {
+      if (user) {
+        localStorage.removeItem(`chatHistory_${user.email}`);
+        localStorage.removeItem(`userProfiles_${user.email}`);
+      }
+      navigate("/");
+    });
   };
 
   const handleUserSelect = (u) => {

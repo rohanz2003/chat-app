@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { auth, googleProvider } from "../firebase";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
   sendEmailVerification,
-  signInWithPopup
+  signInWithPopup 
 } from "firebase/auth";
 import "./Login.css";
 
@@ -37,19 +37,10 @@ function Login() {
         setIsRegistering(false);
       } else {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
         if (!userCredential.user.emailVerified) {
           setError("Please verify your email before logging in. Check your Gmail inbox.");
           await auth.signOut();
-          return;
         }
-
-        // Update localStorage for compatibility with existing Chat.js logic
-        localStorage.setItem("user", JSON.stringify({
-          email: userCredential.user.email,
-          uid: userCredential.user.uid,
-          profilePic: userCredential.user.photoURL
-        }));
       }
     } catch (err) {
       setError(err.message);
@@ -57,20 +48,12 @@ function Login() {
   };
 
   const handleGoogleLogin = async () => {
-    setError("");
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (!validateGmail(result.user.email)) {
         setError("Access restricted to Gmail accounts only.");
         await auth.signOut();
-        return;
       }
-
-      localStorage.setItem("user", JSON.stringify({
-        email: result.user.email,
-        uid: result.user.uid,
-        profilePic: result.user.photoURL
-      }));
     } catch (err) {
       setError(err.message);
     }
@@ -107,8 +90,8 @@ function Login() {
 
         <div className="divider"><span>OR</span></div>
 
-        <button className="google-btn" onClick={handleGoogleLogin} type="button">
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+        <button className="google-btn" onClick={handleGoogleLogin}>
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" />
           Continue with Google
         </button>
 

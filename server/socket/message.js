@@ -137,7 +137,7 @@ module.exports = (io, socket, users) => {
     }
   });
 
-  // SEEN MESSAGE
+  // SEEN MESSAGE                                                                                                                                                                                                                                                                                                                                                           
   socket.on("seen-message", async ({ sender, receiver }) => {
     try {
       await Message.updateMany(
