@@ -100,12 +100,26 @@ function Chat({ user: currentUser }) {
           [userData.email]: userData.profilePic
         }));
       }
+      
+      // Load saved profile picture if available
+      const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
+      if (savedPicFromReg && !userData.profilePic) {
+        userData.profilePic = savedPicFromReg;
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
     } else if (!storedUser) {
       navigate("/");
       return;
     } else {
       const userData = JSON.parse(storedUser);
       setUser(userData);
+      
+      // Load saved profile picture if available
+      const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
+      if (savedPicFromReg && !userData.profilePic) {
+        userData.profilePic = savedPicFromReg;
+      }
+      
       if (userData.profilePic) {
         setUserProfiles((prev) => ({
           ...prev,
@@ -140,6 +154,12 @@ function Chat({ user: currentUser }) {
 
   useEffect(() => {
     if (!user || !socket) return;
+
+    // Restore unread counts from localStorage
+    const storedUnread = localStorage.getItem(`unread_${user.email}`);
+    if (storedUnread) {
+      try { setUnreadMessages(JSON.parse(storedUnread)); } catch (e) { console.error('Failed to parse stored unread counts', e); }
+    }
 
     // Emit user join with profile picture
     socket.emit("join", {
@@ -234,6 +254,14 @@ function Chat({ user: currentUser }) {
         
         // Mark message as read since user is currently viewing this chat
         socket.emit("mark-as-read", { user1: user.email, user2: otherParty });
+      } else {
+        // Increment unread count for this conversation (client-side) and persist
+        setUnreadMessages((prev) => {
+          const key = `${otherParty.toLowerCase()}_${user.email.toLowerCase()}`;
+          const newCounts = { ...prev, [key]: (prev[key] || 0) + 1 };
+          try { localStorage.setItem(`unread_${user.email}`, JSON.stringify(newCounts)); } catch (e) { console.error('Failed to persist unread counts', e); }
+          return newCounts;
+        });
       }
     };
 
@@ -456,6 +484,18 @@ function Chat({ user: currentUser }) {
     // Update messages when user is selected, ensuring chronological order
     if (chatHistory[u]) {
       setMessages(chatHistory[u].sort((a, b) => new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt)));
+    }
+
+    // Clear unread badge for this chat
+    if (user) {
+      setUnreadMessages(prev => {
+        const key = `${u.toLowerCase()}_${user.email.toLowerCase()}`;
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        try { localStorage.setItem(`unread_${user.email}`, JSON.stringify(next)); } catch (e) { console.error('Failed to persist unread counts', e); }
+        return next;
+      });
     }
   };
 

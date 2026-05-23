@@ -15,7 +15,21 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [profilePic, setProfilePic] = useState(null);
+  const [profilePreview, setProfilePreview] = useState(null);
   const navigate = useNavigate();
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setProfilePreview(event.target.result);
+      setProfilePic(file);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const validateGmail = (email) => {
     return email.toLowerCase().endsWith("@gmail.com");
@@ -34,9 +48,17 @@ function Login() {
     try {
       if (isRegistering) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        // Save profile picture to localStorage if provided
+        if (profilePic || profilePreview) {
+          localStorage.setItem(`profilePic_${email}`, profilePreview || "");
+        }
+        
         await sendEmailVerification(userCredential.user);
-        setMessage("Verification email sent! Please check your Gmail to verify your account before logging in.");
+        setMessage("Verification email sent! Please check your Gmail to verify your account before logging in. Your profile picture will be ready after verification.");
         setIsRegistering(false);
+        setProfilePic(null);
+        setProfilePreview(null);
       } else {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         
@@ -49,7 +71,7 @@ function Login() {
         const signedInUser = {
           email: userCredential.user.email,
           uid: userCredential.user.uid,
-          profilePic: userCredential.user.photoURL
+          profilePic: userCredential.user.photoURL || localStorage.getItem(`profilePic_${userCredential.user.email}`) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
         };
 
         localStorage.setItem("user", JSON.stringify(signedInUser));
@@ -70,6 +92,25 @@ function Login() {
         {message && <div className="success-banner">{message}</div>}
 
         <form onSubmit={handleAuth}>
+          {isRegistering && (
+            <div className="profile-pic-section">
+              <label htmlFor="profile-pic" className="profile-pic-label">
+                {profilePreview ? (
+                  <img src={profilePreview} alt="Profile" className="profile-pic-preview" />
+                ) : (
+                  <div className="profile-pic-placeholder">📷 Click to add profile picture</div>
+                )}
+              </label>
+              <input
+                id="profile-pic"
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePicChange}
+                style={{ display: "none" }}
+              />
+              <p className="profile-pic-hint">Optional - Personalize your account with a profile picture</p>
+            </div>
+          )}
           <input
             type="email"
             placeholder="Gmail Address"
