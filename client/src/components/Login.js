@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { auth } from "../firebase";
 import {
   signInWithEmailAndPassword,
@@ -84,6 +84,9 @@ function Login() {
 
   return (
     <div className="login">
+      <Link to="/" className="back-to-home">
+        ← Back to Home
+      </Link>
       <div className="login-container">
         <h2>{isRegistering ? "Create Account" : "Connect Login"}</h2>
         <p className="subtitle">Secure enterprise messaging for Gmail users</p>

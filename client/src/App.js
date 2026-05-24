@@ -4,11 +4,12 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 import Login from "./components/Login";
 import Chat from "./components/Chat";
+import Landing from "./components/Landing";
 
 // ✅ Protected Route
 const PrivateRoute = ({ children, loading, user }) => {
   if (loading) return <div>Loading Security Session...</div>;
-  return user ? children : <Navigate to="/" />;
+  return user ? children : <Navigate to="/login" />;
 };
 
 function App() {
@@ -36,7 +37,9 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
+      <Route path="/" element={<Landing />} />
+      
+      <Route path="/login" element={<Login />} />
 
       <Route
         path="/chat"
