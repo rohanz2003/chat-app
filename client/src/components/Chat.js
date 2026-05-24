@@ -85,48 +85,32 @@ function Chat({ user: currentUser }) {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (currentUser) {
-      const userData = {
-        email: currentUser.email,
-        profilePic: currentUser.profilePic,
-        uid: currentUser.uid
-      };
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-      if (userData.profilePic) {
-        setUserProfiles((prev) => ({
-          ...prev,
-          [userData.email]: userData.profilePic
-        }));
-      }
-      
-      // Load saved profile picture if available
-      const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
-      if (savedPicFromReg && !userData.profilePic) {
-        userData.profilePic = savedPicFromReg;
-        localStorage.setItem("user", JSON.stringify(userData));
-      }
-    } else if (!storedUser) {
+    if (!currentUser) {
       navigate("/");
       return;
-    } else {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      
-      // Load saved profile picture if available
-      const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
-      if (savedPicFromReg && !userData.profilePic) {
-        userData.profilePic = savedPicFromReg;
-      }
-      
-      if (userData.profilePic) {
-        setUserProfiles((prev) => ({
-          ...prev,
-          [userData.email]: userData.profilePic
-        }));
-      }
     }
+
+    const userData = {
+      email: currentUser.email,
+      profilePic: currentUser.profilePic,
+      uid: currentUser.uid
+    };
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    if (userData.profilePic) {
+      setUserProfiles((prev) => ({
+        ...prev,
+        [userData.email]: userData.profilePic
+      }));
+    }
+
+    const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
+    if (savedPicFromReg && !userData.profilePic) {
+      userData.profilePic = savedPicFromReg;
+      localStorage.setItem("user", JSON.stringify(userData));
+    }
+  }, [currentUser, navigate]);
 
     if (storedUser) {
       const userData = JSON.parse(storedUser);
