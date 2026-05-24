@@ -14,12 +14,14 @@ import {
   Users,
   Layers,
   Sun,
-  Moon
+  Moon,
+  ChevronDown,
+  X
 } from "lucide-react";
 import { auth } from "../firebase";
 import useSocket from "../hooks/useSocket";
 import { formatLastSeen, formatMessageTime } from "../utils/timeFormatter";
-import { fetchMessages } from "../services/messageService";
+import { fetchMessages, fetchRecentChats } from "../services/messageService";
 import { useNavigate } from "react-router-dom";
 import "./Chat.css";
 
@@ -40,6 +42,7 @@ function Chat({ user: currentUser }) {
   const [userProfiles, setUserProfiles] = useState({}); // Store user profile pictures
   const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+  const [isChatMinimized, setIsChatMinimized] = useState(false); // Track if chat is minimized
   const typingTimeoutRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
@@ -111,6 +114,60 @@ function Chat({ user: currentUser }) {
       localStorage.setItem("user", JSON.stringify(userData));
     }
   }, [currentUser, navigate]);
+
+  // Load chat history from localStorage and fetch recent chats on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const loadChatHistory = async () => {
+      try {
+        // 1. Load from localStorage first (for offline access)
+        const savedHistory = localStorage.getItem(`chatHistory_${user.email}`);
+        if (savedHistory) {
+          try {
+            const parsed = JSON.parse(savedHistory);
+            setChatHistory(parsed);
+            console.log("✅ Loaded chat history from localStorage:", Object.keys(parsed).length, "conversations");
+          } catch (e) {
+            console.error("Failed to parse saved chat history", e);
+          }
+        }
+
+        // 2. Fetch recent chats from server (to get the most up-to-date list)
+        const recentChats = await fetchRecentChats(user.email);
+        if (recentChats && recentChats.length > 0) {
+          // Build chat history structure from recent chats for display purposes
+          const historyFromServer = {};
+          recentChats.forEach(chat => {
+            if (chat.userEmail) {
+              const emailKey = chat.userEmail.toLowerCase();
+              historyFromServer[emailKey] = [{
+                _id: chat.messageId,
+                sender: user.email,
+                receiver: chat.userEmail,
+                text: chat.lastMessage,
+                type: chat.type,
+                timestamp: chat.timestamp,
+                seen: false
+              }];
+            }
+          });
+
+          // Merge with existing localStorage data, preferring localStorage for full histories
+          setChatHistory(prev => {
+            const merged = { ...historyFromServer, ...prev };
+            persistHistory(merged, user.email);
+            return merged;
+          });
+          console.log("✅ Loaded", recentChats.length, "recent chats from server");
+        }
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+      }
+    };
+
+    loadChatHistory();
+  }, [user]);
 
   useEffect(() => {
     if (!user || !socket) return;
@@ -641,6 +698,27 @@ function Chat({ user: currentUser }) {
             </div>
           </div>
           <div className="chat-header-actions">
+            {selectedUser && (
+              <>
+                <button 
+                  className="icon-btn minimize-btn" 
+                  title={isChatMinimized ? "Expand chat" : "Minimize chat"}
+                  onClick={() => setIsChatMinimized(!isChatMinimized)}
+                >
+                  {isChatMinimized ? <ChevronDown size={18} /> : <ChevronDown size={18} style={{ transform: 'rotate(180deg)' }} />}
+                </button>
+                <button 
+                  className="icon-btn close-btn" 
+                  title="Close chat"
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setIsChatMinimized(false);
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </>
+            )}
             <button className="icon-btn" title="More options">
               <Settings size={18} />
             </button>
@@ -648,6 +726,7 @@ function Chat({ user: currentUser }) {
           </div>
         </div>
 
+        {!isChatMinimized && (
         <div className="chat-panel-body">
           {selectedUser ? (
             <div className="chat-messages">
@@ -732,7 +811,9 @@ function Chat({ user: currentUser }) {
             </div>
           )}
         </div>
+        )}
 
+        {!isChatMinimized && (
         <div className="chat-panel-footer">
           <button className="secondary-icon-btn" title="Emoji">
             <Smile size={18} />
@@ -763,6 +844,7 @@ function Chat({ user: currentUser }) {
             <Send size={18} />
           </button>
         </div>
+        )}
       </main>
 
       <aside className="dashboard-panel">
