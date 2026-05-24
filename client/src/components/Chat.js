@@ -112,30 +112,6 @@ function Chat({ user: currentUser }) {
     }
   }, [currentUser, navigate]);
 
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      const savedProfiles = localStorage.getItem(`userProfiles_${userData.email}`);
-      if (savedProfiles) {
-        try {
-          setUserProfiles((prev) => ({
-            ...prev,
-            ...JSON.parse(savedProfiles)
-          }));
-        } catch (e) {
-          console.error("Failed to restore profiles", e);
-        }
-      }
-      const savedChatHistory = localStorage.getItem(`chatHistory_${userData.email}`);
-      if (savedChatHistory) {
-        try {
-          setChatHistory(JSON.parse(savedChatHistory));
-        } catch (e) {
-          console.error("Failed to restore chat history", e);
-        }
-      }
-    }
-  }, [currentUser, navigate]);
-
   useEffect(() => {
     if (!user || !socket) return;
 
