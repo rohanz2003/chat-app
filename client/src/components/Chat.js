@@ -45,6 +45,7 @@ function Chat({ user: currentUser }) {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const [isChatMinimized, setIsChatMinimized] = useState(false); // Track if chat is minimized
   const [zoomedImage, setZoomedImage] = useState(null); // State for image zoom feature
+  const [isZoomMinimized, setIsZoomMinimized] = useState(false); // Track zoom bubble state
   const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
   const [replyTo, setReplyTo] = useState(null); // Message being replied to
   const typingTimeoutRef = useRef(null);
@@ -58,6 +59,17 @@ function Chat({ user: currentUser }) {
     document.body.classList.toggle("dark-mode", isDarkMode);
     localStorage.setItem("theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
+
+  const handleZoomImage = (src) => {
+    setZoomedImage(src);
+    setIsZoomMinimized(false);
+  };
+
+  useEffect(() => {
+    if (!zoomedImage) {
+      setIsZoomMinimized(false);
+    }
+  }, [zoomedImage]);
 
   // Auto-scroll to bottom whenever messages or typing state changes
   useEffect(() => {
@@ -740,7 +752,7 @@ function Chat({ user: currentUser }) {
               src={userProfiles[user.email.toLowerCase()] || user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"}
               alt={user.email}
               className="profile-card-avatar"
-              onClick={() => setZoomedImage(userProfiles[user.email.toLowerCase()] || user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80")}
+              onClick={() => handleZoomImage(userProfiles[user.email.toLowerCase()] || user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80")}
             />
             <div>
               <span className="profile-name">{user.email.split("@")[0]}</span>
@@ -773,7 +785,7 @@ function Chat({ user: currentUser }) {
                       src={userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"}
                       alt={u}
                       className="user-avatar"
-                      onClick={(e) => { e.stopPropagation(); setZoomedImage(userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"); }}
+                      onClick={(e) => { e.stopPropagation(); handleZoomImage(userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"); }}
                     />
                     {isUserOnline(u) && <span className="status-dot" />}
                   </div>
@@ -806,7 +818,7 @@ function Chat({ user: currentUser }) {
                     src={userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"}
                     alt={u}
                     className="user-avatar"
-                    onClick={(e) => { e.stopPropagation(); setZoomedImage(userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"); }}
+                    onClick={(e) => { e.stopPropagation(); handleZoomImage(userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"); }}
                   />
                   <span className="status-dot online" />
                 </div>
@@ -842,7 +854,7 @@ function Chat({ user: currentUser }) {
                 src={selectedUser ? userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80" : "https://images.unsplash.com/photo-1503416997304-3cc562acfdc5?auto=format&fit=crop&w=200&q=80"}
                 alt={selectedUser || "Start"}
                 className="header-avatar"
-                onClick={() => selectedUser && setZoomedImage(userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80")}
+                onClick={() => selectedUser && handleZoomImage(userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80")}
               />
             </div>
             <div>
@@ -924,7 +936,7 @@ function Chat({ user: currentUser }) {
                           {msg.type === "media" ? (
                             <div className="media-message">
                               {msg.mediaType === "image" && msg.text?.data?.startsWith("data:image/") && (
-                                <img src={msg.text.data} alt="Shared" className="media-image" onClick={() => setZoomedImage(msg.text.data)} />
+                                <img src={msg.text.data} alt="Shared" className="media-image" onClick={() => handleZoomImage(msg.text.data)} />
                               )}
                               {msg.mediaType === "video" && msg.text?.data?.startsWith("data:video/") && (
                                 <video controls className="media-video">
@@ -1101,26 +1113,50 @@ function Chat({ user: currentUser }) {
         </div>
       )}
 
-      {zoomedImage && (
-        <div className="image-zoom-overlay" onClick={() => setZoomedImage(null)}>
-          <motion.div 
+      {zoomedImage && isZoomMinimized && (
+        <div className="zoom-minimized-bubble">
+          <img src={zoomedImage} alt="Minimized preview" />
+          <div className="zoom-minimized-copy">
+            <strong>Profile preview minimized</strong>
+            <span>Tap to expand</span>
+          </div>
+          <button
+            className="zoom-minimized-close"
+            onClick={() => {
+              setZoomedImage(null);
+              setIsZoomMinimized(false);
+            }}
+            aria-label="Close preview"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {zoomedImage && !isZoomMinimized && (
+        <div className="image-zoom-overlay" onClick={() => { setZoomedImage(null); setIsZoomMinimized(false); }}>
+          <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="zoom-content" 
-            onClick={e => e.stopPropagation()}
+            className="zoom-content"
+            onClick={(e) => e.stopPropagation()}
           >
-            <img src={zoomedImage} alt="Zoomed DP" />
-            <button className="close-zoom" onClick={() => setZoomedImage(null)}><X size={24}/></button>
-            <div className="zoom-controls">
-              <button className="zoom-control-btn min" onClick={() => setZoomedImage(null)} title="Minimize">
-                <Minus size={20} />
-              </button>
-              <button className="zoom-control-btn close" onClick={() => setZoomedImage(null)} title="Close">
-                <X size={20} />
+            <div className="zoom-header">
+              <div className="zoom-title">Profile picture preview</div>
+              <button className="close-zoom" onClick={() => { setZoomedImage(null); setIsZoomMinimized(false); }} aria-label="Close preview">
+                <X size={24} />
               </button>
             </div>
             <div className="zoom-image-circle">
               <img src={zoomedImage} alt="Zoomed DP" />
+            </div>
+            <div className="zoom-controls">
+              <button className="zoom-control-btn min" onClick={() => setIsZoomMinimized(true)} title="Minimize preview">
+                <Minus size={20} />
+              </button>
+              <button className="zoom-control-btn close" onClick={() => { setZoomedImage(null); setIsZoomMinimized(false); }} title="Close preview">
+                <X size={20} />
+              </button>
             </div>
           </motion.div>
         </div>
