@@ -186,8 +186,19 @@ function Chat({ user: currentUser }) {
 
     socket.on("online-users", setOnlineUsers);
 
-    socket.on("typing", (from) => setTypingUser(from));
-    socket.on("stop-typing", () => setTypingUser(null));
+    socket.on("typing", ({ from }) => {
+      const activeChat = selectedUserRef.current;
+      if (from && activeChat && from.toLowerCase() === activeChat.toLowerCase()) {
+        setTypingUser(from);
+      }
+    });
+
+    socket.on("stop-typing", ({ from }) => {
+      const activeChat = selectedUserRef.current;
+      if (!from || (activeChat && from.toLowerCase() === activeChat.toLowerCase())) {
+        setTypingUser(null);
+      }
+    });
 
     socket.on("last-seen", (data) => {
       setLastSeen((prev) => ({
@@ -332,19 +343,44 @@ function Chat({ user: currentUser }) {
     syncChat();
   }, [selectedUser, user, socket]);
 
+  const stopTyping = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (user && selectedUser && socket) {
+      socket.emit("stop-typing", { from: user.email, to: selectedUser });
+    }
+  };
+
+  useEffect(() => {
+    // When switching active chat, clear typing indicator from the previous partner.
+    setTypingUser(null);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, [selectedUser]);
+
   const handleTyping = (e) => {
     const val = e.target.value;
     setMessage(val);
 
-    if (user && selectedUser && socket) {
-      socket.emit("typing", { from: user.email, to: selectedUser });
-      
-      // Debounce the stop-typing event and clear previous timers
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("stop-typing", { from: user.email, to: selectedUser });
-      }, 2000);
+    if (!user || !selectedUser || !socket) return;
+    if (val.trim() === "") {
+      stopTyping();
+      return;
     }
+
+    socket.emit("typing", { from: user.email, to: selectedUser });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping();
+    }, 1200);
   };
 
   const sendMessage = () => {
@@ -373,6 +409,7 @@ function Chat({ user: currentUser }) {
     // Send to server (don't add locally - wait for server broadcast to avoid duplicates)
     socket.emit("send-message", newMsg);
 
+    stopTyping();
     setMessage("");
   };
 
@@ -827,6 +864,10 @@ function Chat({ user: currentUser }) {
             value={message}
             onChange={handleTyping}
             onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+            onBlur={() => {
+              // ensure typing state is cleared when input loses focus
+              stopTyping();
+            }}
             disabled={!selectedUser}
           />
           <label htmlFor="media-input" className="secondary-icon-btn" title="Upload media">
