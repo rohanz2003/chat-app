@@ -16,7 +16,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  X
+  X,
+  Minus
 } from "lucide-react";
 import { auth } from "../firebase";
 import useSocket from "../hooks/useSocket";
@@ -669,8 +670,12 @@ function Chat({ user: currentUser }) {
   const recentChats = Object.keys(chatHistory)
     .filter(u => u !== user?.email)
     .sort((a, b) => {
-      const timeA = chatHistory[a][chatHistory[a].length - 1]?.timestamp || 0;
-      const timeB = chatHistory[b][chatHistory[b].length - 1]?.timestamp || 0;
+      const historyA = chatHistory[a] || [];
+      const historyB = chatHistory[b] || [];
+      const lastA = historyA[historyA.length - 1];
+      const lastB = historyB[historyB.length - 1];
+      const timeA = new Date(lastA?.timestamp || lastA?.createdAt || 0);
+      const timeB = new Date(lastB?.timestamp || lastB?.createdAt || 0);
       return new Date(timeB) - new Date(timeA);
     });
 
@@ -1106,6 +1111,17 @@ function Chat({ user: currentUser }) {
           >
             <img src={zoomedImage} alt="Zoomed DP" />
             <button className="close-zoom" onClick={() => setZoomedImage(null)}><X size={24}/></button>
+            <div className="zoom-controls">
+              <button className="zoom-control-btn min" onClick={() => setZoomedImage(null)} title="Minimize">
+                <Minus size={20} />
+              </button>
+              <button className="zoom-control-btn close" onClick={() => setZoomedImage(null)} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="zoom-image-circle">
+              <img src={zoomedImage} alt="Zoomed DP" />
+            </div>
           </motion.div>
         </div>
       )}

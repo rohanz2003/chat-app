@@ -3,7 +3,7 @@ module.exports = (io, socket, users, userProfiles) => {
     // Handle both old string format and new object format
     let userId = typeof data === 'string' ? data : data?.email;
     const profilePic = typeof data === 'object' ? data?.profilePic : null;
-
+    
     if (!userId || userId.trim() === "") {
       console.log("❌ Invalid userId received");
       return;

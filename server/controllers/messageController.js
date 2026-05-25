@@ -22,11 +22,13 @@ exports.getRecentChats = async (req, res) => {
       return res.status(400).json({ error: "userEmail is required" });
     }
 
+    const normalizedEmail = userEmail.toLowerCase();
+
     // Find all conversations involving this user
     const messages = await Message.find({
       $or: [
-        { sender: userEmail },
-        { receiver: userEmail }
+        { sender: { $regex: new RegExp(`^${normalizedEmail}$`, "i") } },
+        { receiver: { $regex: new RegExp(`^${normalizedEmail}$`, "i") } }
       ]
     }).sort({ timestamp: -1 });
 
@@ -34,7 +36,7 @@ exports.getRecentChats = async (req, res) => {
     const conversations = {};
     
     messages.forEach(msg => {
-      const otherUser = msg.sender === userEmail ? msg.receiver : msg.sender;
+      const otherUser = msg.sender.toLowerCase() === normalizedEmail ? msg.receiver.toLowerCase() : msg.sender.toLowerCase();
       
       // Only keep the most recent message per conversation
       if (!conversations[otherUser]) {
