@@ -246,8 +246,8 @@ function Chat({ user: currentUser }) {
       console.log(`📨 Typing listener triggered: from=${normalizedFrom}, activeChat=${normalizedActiveChat}, match=${normalizedFrom === normalizedActiveChat}`);
       
       if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
-        console.log(`✅ Typing indicator set for ${from}`);
-        setTypingUser(from);
+        console.log(`✅ Typing indicator set for ${normalizedFrom}`);
+        setTypingUser(normalizedFrom);
       } else {
         console.warn(`❌ Typing mismatch or empty: normalizedFrom=[${normalizedFrom}], normalizedActiveChat=[${normalizedActiveChat}]`);
       }
@@ -262,7 +262,15 @@ function Chat({ user: currentUser }) {
       if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
         console.log(`✅ Typing indicator cleared`);
         setTypingUser(null);
+        return;
       }
+      setTypingUser((currentTypingUser) => {
+        if (currentTypingUser && normalizeEmail(currentTypingUser) === normalizedFrom) {
+          console.log(`✅ Fallback stop-typing cleared for ${normalizedFrom}`);
+          return null;
+        }
+        return currentTypingUser;
+      });
     });
 
     socket.on("last-seen", (data) => {
