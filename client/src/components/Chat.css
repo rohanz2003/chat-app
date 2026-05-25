@@ -766,6 +766,128 @@ body {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
 }
 
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: var(--background-white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 2000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.context-menu button {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  text-align: left;
+}
+
+.context-menu button:hover {
+  background: var(--border-light);
+}
+
+.context-menu .delete-option {
+  color: var(--danger-color);
+}
+
+.context-menu .delete-option:hover {
+  background: var(--danger-light);
+}
+
+/* Reply Quoting in Bubble */
+.reply-quote {
+  background: rgba(0, 0, 0, 0.05);
+  border-left: 3px solid var(--primary-color);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.message.sent .reply-quote {
+  background: rgba(255, 255, 255, 0.15);
+  border-left-color: white;
+}
+
+.reply-quote small {
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.reply-quote p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
+}
+
+/* Reply Preview above Input */
+.reply-preview {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--background-white);
+  border-top: 1px solid var(--border-color);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  animation: slideUp 0.2s ease;
+}
+
+.reply-preview-content {
+  flex: 1;
+  border-left: 3px solid var(--primary-color);
+  padding-left: 10px;
+  min-width: 0;
+}
+
+.reply-preview-content small {
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.reply-preview-content p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-reply {
+  background: var(--border-light);
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-light);
+}
+
 .message.received .message-content {
   border-bottom-left-radius: 4px;
   border: 1px solid var(--border-color);

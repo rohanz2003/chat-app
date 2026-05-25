@@ -44,6 +44,8 @@ function Chat({ user: currentUser }) {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const [isChatMinimized, setIsChatMinimized] = useState(false); // Track if chat is minimized
   const [zoomedImage, setZoomedImage] = useState(null); // State for image zoom feature
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
+  const [replyTo, setReplyTo] = useState(null); // Message being replied to
   const typingTimeoutRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
@@ -54,6 +56,13 @@ function Chat({ user: currentUser }) {
     document.body.classList.toggle("dark-mode", isDarkMode);
     localStorage.setItem("theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleGlobalClick = () => setContextMenu(null);
+    window.addEventListener("click", handleGlobalClick);
+    return () => window.removeEventListener("click", handleGlobalClick);
+  }, []);
 
   const formatDay = (timestamp) => {
     if (!timestamp) return "";
@@ -235,6 +244,28 @@ function Chat({ user: currentUser }) {
       console.log(`✅ Chat between ${user1} and ${user2} has been cleared from database`);
     });
 
+    // Listen for message deletion
+    socket.on("message-deleted", ({ messageId, sender, receiver }) => {
+      const senderEmail = sender.toLowerCase();
+      const receiverEmail = receiver.toLowerCase();
+      const currentUserEmail = user.email.toLowerCase();
+      const otherParty = senderEmail === currentUserEmail ? receiverEmail : senderEmail;
+
+      setChatHistory((prev) => {
+        const currentHistory = prev[otherParty] || [];
+        const updated = {
+          ...prev,
+          [otherParty]: currentHistory.filter(m => (m._id !== messageId && m.tempId !== messageId))
+        };
+        persistHistory(updated, user?.email);
+        return updated;
+      });
+
+      if (selectedUserRef.current && selectedUserRef.current.toLowerCase() === otherParty) {
+        setMessages((prev) => prev.filter(m => (m._id !== messageId && m.tempId !== messageId)));
+      }
+    });
+
     // Listen for incoming messages globally (even when not in the room)
     const handleIncomingMessage = (msg) => {
       console.log("📨 Incoming message:", msg);
@@ -304,6 +335,7 @@ function Chat({ user: currentUser }) {
       socket.off("unread-update");
       socket.off("user-profile-update");
       socket.off("chat-cleared");
+      socket.off("message-deleted");
       socket.off("receive-message", handleIncomingMessage);
     };
   }, [socket, user]); // Removed selectedUser dependency to keep listener stable
@@ -407,11 +439,21 @@ function Chat({ user: currentUser }) {
       timestamp: new Date().toISOString() // Ensure current time is captured precisely
     };
 
+    // Add reply metadata if replying
+    if (replyTo) {
+      newMsg.replyTo = {
+        id: replyTo._id || replyTo.tempId,
+        text: replyTo.type === 'media' ? 'Media file' : replyTo.text,
+        sender: replyTo.sender
+      };
+    }
+
     // Send to server (don't add locally - wait for server broadcast to avoid duplicates)
     socket.emit("send-message", newMsg);
 
     stopTyping();
     setMessage("");
+    setReplyTo(null);
   };
 
   const handleMediaShare = (e) => {
@@ -522,6 +564,25 @@ function Chat({ user: currentUser }) {
       setMessages([]);
       setSelectedUser(null);
       console.log("🗑️ All chat history cleared.");
+    }
+  };
+
+  const handleContextMenu = (e, msg) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.pageX,
+      y: e.pageY,
+      message: msg
+    });
+  };
+
+  const handleDeleteMessage = (msg) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      socket.emit("delete-message", { 
+        messageId: msg._id || msg.tempId, 
+        sender: msg.sender, 
+        receiver: msg.receiver 
+      });
     }
   };
 
@@ -818,8 +879,15 @@ function Chat({ user: currentUser }) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.25 }}
                         className={`message ${msg.sender === user.email ? "sent" : "received"}`}
+                        onContextMenu={(e) => handleContextMenu(e, msg)}
                       >
                         <div className="message-content">
+                          {msg.replyTo && (
+                            <div className="reply-quote">
+                              <small>{msg.replyTo.sender === user.email ? "You" : msg.replyTo.sender.split('@')[0]}</small>
+                              <p>{msg.replyTo.text}</p>
+                            </div>
+                          )}
                           {msg.type === "media" ? (
                             <div className="media-message">
                               {msg.mediaType === "image" && msg.text?.data?.startsWith("data:image/") && (
@@ -881,6 +949,15 @@ function Chat({ user: currentUser }) {
 
         {!isChatMinimized && (
         <div className="chat-panel-footer">
+          {replyTo && (
+            <div className="reply-preview">
+              <div className="reply-preview-content">
+                <small>Replying to {replyTo.sender === user.email ? "yourself" : replyTo.sender.split('@')[0]}</small>
+                <p>{replyTo.type === 'media' ? 'Media file' : replyTo.text}</p>
+              </div>
+              <button className="close-reply" onClick={() => setReplyTo(null)}><X size={14} /></button>
+            </div>
+          )}
           <button className="secondary-icon-btn" title="Emoji">
             <Smile size={18} />
           </button>
@@ -976,6 +1053,33 @@ function Chat({ user: currentUser }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {contextMenu && (
+        <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          <button onClick={() => { setReplyTo(contextMenu.message); setContextMenu(null); }}>
+            <MessageCircle size={14} /> Reply
+          </button>
+          {contextMenu.message.sender === user.email && (
+            <button className="delete-option" onClick={() => { handleDeleteMessage(contextMenu.message); setContextMenu(null); }}>
+              <Trash2 size={14} /> Delete
+            </button>
+          )}
+        </div>
+      )}
+
+      {zoomedImage && (
+        <div className="image-zoom-overlay" onClick={() => setZoomedImage(null)}>
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="zoom-content" 
+            onClick={e => e.stopPropagation()}
+          >
+            <img src={zoomedImage} alt="Zoomed DP" />
+            <button className="close-zoom" onClick={() => setZoomedImage(null)}><X size={24}/></button>
+          </motion.div>
+        </div>
+      )}
 
       <nav className="bottom-nav">
         <button className="bottom-nav-btn active"><MessageCircle size={18} /><span>Chat</span></button>

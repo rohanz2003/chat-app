@@ -123,6 +123,24 @@ module.exports = (io, socket, users) => {
     }
   });
 
+  // DELETE MESSAGE
+  socket.on("delete-message", async ({ messageId, sender, receiver }) => {
+    try {
+      // Find and delete the message from DB
+      await Message.deleteOne({
+        $or: [
+          { _id: messageId },
+          { tempId: messageId }
+        ]
+      });
+
+      const roomId = getRoomId(sender, receiver);
+      io.to(roomId).emit("message-deleted", { messageId, sender, receiver });
+    } catch (err) {
+      console.error("❌ Error deleting message:", err.message);
+    }
+  });
+
   // MARK MESSAGES AS READ
   socket.on("mark-as-read", ({ user1, user2 }) => {
     const unreadKey = `${user2}_${user1}`;
