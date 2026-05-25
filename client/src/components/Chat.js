@@ -47,6 +47,7 @@ function Chat({ user: currentUser }) {
   const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
   const [replyTo, setReplyTo] = useState(null); // Message being replied to
   const typingTimeoutRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
   const selectedUserRef = useRef(selectedUser);
@@ -56,6 +57,11 @@ function Chat({ user: currentUser }) {
     document.body.classList.toggle("dark-mode", isDarkMode);
     localStorage.setItem("theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
+
+  // Auto-scroll to bottom whenever messages or typing state changes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, typingUser]);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -104,7 +110,7 @@ function Chat({ user: currentUser }) {
     }
 
     const userData = {
-      email: currentUser.email,
+      email: currentUser.email.toLowerCase(),
       profilePic: currentUser.profilePic,
       uid: currentUser.uid
     };
@@ -114,11 +120,11 @@ function Chat({ user: currentUser }) {
     if (userData.profilePic) {
       setUserProfiles((prev) => ({
         ...prev,
-        [userData.email]: userData.profilePic
+        [userData.email.toLowerCase()]: userData.profilePic
       }));
     }
 
-    const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email}`);
+    const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email.toLowerCase()}`);
     if (savedPicFromReg && !userData.profilePic) {
       userData.profilePic = savedPicFromReg;
       localStorage.setItem("user", JSON.stringify(userData));
@@ -182,17 +188,22 @@ function Chat({ user: currentUser }) {
   useEffect(() => {
     if (!user || !socket) return;
 
-    // Restore unread counts from localStorage
-    const storedUnread = localStorage.getItem(`unread_${user.email}`);
+    const handleJoin = () => {
+      socket.emit("join", {
+        email: user.email,
+        profilePic: user.profilePic || null
+      });
+    };
+
+    // Join immediately and on every reconnection
+    handleJoin();
+    socket.on("connect", handleJoin);
+
+    // Restore unread counts
+    const storedUnread = localStorage.getItem(`unread_${user.email.toLowerCase()}`);
     if (storedUnread) {
       try { setUnreadMessages(JSON.parse(storedUnread)); } catch (e) { console.error('Failed to parse stored unread counts', e); }
     }
-
-    // Emit user join with profile picture
-    socket.emit("join", {
-      email: user.email,
-      profilePic: user.profilePic || null
-    });
 
     socket.on("online-users", setOnlineUsers);
 
@@ -229,11 +240,11 @@ function Chat({ user: currentUser }) {
       setUserProfiles((prev) => {
         const updated = {
           ...prev,
-          [data.email]: data.profilePic
+          [data.email.toLowerCase()]: data.profilePic
         };
         // Save profiles to localStorage
         if (user) {
-          localStorage.setItem(`userProfiles_${user.email}`, JSON.stringify(updated));
+          localStorage.setItem(`userProfiles_${user.email.toLowerCase()}`, JSON.stringify(updated));
         }
         return updated;
       });
@@ -328,6 +339,7 @@ function Chat({ user: currentUser }) {
     socket.on("receive-message", handleIncomingMessage);
 
     return () => {
+      socket.off("connect", handleJoin);
       socket.off("online-users");
       socket.off("typing");
       socket.off("stop-typing");
@@ -413,7 +425,7 @@ function Chat({ user: currentUser }) {
 
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping();
-    }, 1200);
+    }, 3000); // Increased timeout for better UX
   };
 
   const sendMessage = () => {
@@ -594,10 +606,26 @@ function Chat({ user: currentUser }) {
     reader.onload = (event) => {
       const newPic = event.target.result;
       const updatedUser = { ...user, profilePic: newPic };
+      
+      // 1. Update local user state
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      
+      // 2. Persist to storage with consistent lowercase key
       localStorage.setItem(`profilePic_${user.email.toLowerCase()}`, newPic);
-      console.log("✅ Profile picture updated locally and syncing via socket");
+
+      // 3. Update the profiles map so UI components using it refresh immediately
+      setUserProfiles(prev => ({
+        ...prev,
+        [user.email.toLowerCase()]: newPic
+      }));
+
+      // 4. Inform the server and other users via socket
+      if (socket) {
+        socket.emit("join", { email: user.email, profilePic: newPic });
+      }
+
+      console.log("✅ Profile picture updated locally and synced via socket");
       alert("Profile picture updated successfully!");
     };
     reader.readAsDataURL(file);
@@ -704,10 +732,10 @@ function Chat({ user: currentUser }) {
         <div className="profile-card">
           <div className="profile-card-main">
             <img
-              src={user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"}
+              src={userProfiles[user.email.toLowerCase()] || user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"}
               alt={user.email}
               className="profile-card-avatar"
-              onClick={() => setZoomedImage(user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80")}
+              onClick={() => setZoomedImage(userProfiles[user.email.toLowerCase()] || user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80")}
             />
             <div>
               <span className="profile-name">{user.email.split("@")[0]}</span>
@@ -931,10 +959,11 @@ function Chat({ user: currentUser }) {
                     <span />
                     <span />
                     <span />
-                    {typingUser} is typing...
+                    {typingUser.split('@')[0]} is typing...
                   </motion.div>
                 )}
               </AnimatePresence>
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <div className="dashboard-empty-state">
