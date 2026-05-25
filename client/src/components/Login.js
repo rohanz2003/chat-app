@@ -51,7 +51,7 @@ function Login() {
         
         // Save profile picture to localStorage if provided
         if (profilePic || profilePreview) {
-          localStorage.setItem(`profilePic_${email}`, profilePreview || "");
+          localStorage.setItem(`profilePic_${email.toLowerCase()}`, profilePreview || "");
         }
         
         await sendEmailVerification(userCredential.user);
@@ -71,7 +71,7 @@ function Login() {
         const signedInUser = {
           email: userCredential.user.email,
           uid: userCredential.user.uid,
-          profilePic: userCredential.user.photoURL || localStorage.getItem(`profilePic_${userCredential.user.email}`) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
+          profilePic: userCredential.user.photoURL || localStorage.getItem(`profilePic_${userCredential.user.email.toLowerCase()}`) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
         };
 
         localStorage.setItem("user", JSON.stringify(signedInUser));

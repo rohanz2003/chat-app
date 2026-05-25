@@ -43,6 +43,7 @@ function Chat({ user: currentUser }) {
   const [isMediaSending, setIsMediaSending] = useState(false); // Track media upload state
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const [isChatMinimized, setIsChatMinimized] = useState(false); // Track if chat is minimized
+  const [zoomedImage, setZoomedImage] = useState(null); // State for image zoom feature
   const typingTimeoutRef = useRef(null);
 
   // Use Ref to track selectedUser for the socket listener to avoid stale closures
@@ -524,6 +525,23 @@ function Chat({ user: currentUser }) {
     }
   };
 
+  const handleUpdateProfilePic = (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const newPic = event.target.result;
+      const updatedUser = { ...user, profilePic: newPic };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      localStorage.setItem(`profilePic_${user.email.toLowerCase()}`, newPic);
+      console.log("✅ Profile picture updated locally and syncing via socket");
+      alert("Profile picture updated successfully!");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const logout = () => {
     auth.signOut().then(() => {
       localStorage.removeItem("user");
@@ -628,6 +646,7 @@ function Chat({ user: currentUser }) {
               src={user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"}
               alt={user.email}
               className="profile-card-avatar"
+              onClick={() => setZoomedImage(user.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80")}
             />
             <div>
               <span className="profile-name">{user.email.split("@")[0]}</span>
@@ -660,6 +679,7 @@ function Chat({ user: currentUser }) {
                       src={userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"}
                       alt={u}
                       className="user-avatar"
+                      onClick={(e) => { e.stopPropagation(); setZoomedImage(userProfiles[u] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80"); }}
                     />
                     {isUserOnline(u) && <span className="status-dot" />}
                   </div>
@@ -692,6 +712,7 @@ function Chat({ user: currentUser }) {
                     src={userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"}
                     alt={u}
                     className="user-avatar"
+                    onClick={(e) => { e.stopPropagation(); setZoomedImage(userProfiles[u] || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80"); }}
                   />
                   <span className="status-dot online" />
                 </div>
@@ -727,6 +748,7 @@ function Chat({ user: currentUser }) {
                 src={selectedUser ? userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80" : "https://images.unsplash.com/photo-1503416997304-3cc562acfdc5?auto=format&fit=crop&w=200&q=80"}
                 alt={selectedUser || "Start"}
                 className="header-avatar"
+                onClick={() => selectedUser && setZoomedImage(userProfiles[selectedUser] || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80")}
               />
             </div>
             <div>
@@ -756,9 +778,16 @@ function Chat({ user: currentUser }) {
                 </button>
               </>
             )}
-            <button className="icon-btn" title="More options">
+            <label htmlFor="update-profile-pic" className="icon-btn" title="Update Profile Picture" style={{ cursor: 'pointer' }}>
               <Settings size={18} />
-            </button>
+            </label>
+            <input
+              id="update-profile-pic"
+              type="file"
+              accept="image/*"
+              onChange={handleUpdateProfilePic}
+              style={{ display: "none" }}
+            />
             <button className="logout-btn" onClick={logout}>Logout</button>
           </div>
         </div>
@@ -794,7 +823,7 @@ function Chat({ user: currentUser }) {
                           {msg.type === "media" ? (
                             <div className="media-message">
                               {msg.mediaType === "image" && msg.text?.data?.startsWith("data:image/") && (
-                                <img src={msg.text.data} alt="Shared" className="media-image" />
+                                <img src={msg.text.data} alt="Shared" className="media-image" onClick={() => setZoomedImage(msg.text.data)} />
                               )}
                               {msg.mediaType === "video" && msg.text?.data?.startsWith("data:video/") && (
                                 <video controls className="media-video">

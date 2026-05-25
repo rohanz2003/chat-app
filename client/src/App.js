@@ -21,7 +21,7 @@ function App() {
       if (currentUser) {
         const mappedUser = {
           email: currentUser.email,
-          profilePic: currentUser.photoURL,
+          profilePic: currentUser.photoURL || localStorage.getItem(`profilePic_${currentUser.email.toLowerCase()}`),
           uid: currentUser.uid
         };
         setUser(mappedUser);
