@@ -98,6 +98,9 @@ function Chat({ user: currentUser }) {
     });
   };
 
+  const normalizeEmail = (email) => (email || "").toLowerCase().trim();
+  const getDisplayName = (email) => (email || "").split("@")[0];
+
   // Helper to safely persist limited chat history without large media blobs or bloat
   const persistHistory = (historyObj, currentUserEmail) => {
     if (!currentUserEmail) return;
@@ -364,6 +367,42 @@ function Chat({ user: currentUser }) {
       socket.off("receive-message", handleIncomingMessage);
     };
   }, [socket, user]); // Removed selectedUser dependency to keep listener stable
+
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const emitVisiblePresence = () => {
+      if (document.hidden) {
+        socket.emit("leave", { email: user.email.toLowerCase() });
+      } else {
+        socket.emit("join", { email: user.email.toLowerCase(), profilePic: user.profilePic || null });
+      }
+    };
+
+    const handleBlur = () => {
+      socket.emit("leave", { email: user.email.toLowerCase() });
+    };
+
+    const handleFocus = () => {
+      socket.emit("join", { email: user.email.toLowerCase(), profilePic: user.profilePic || null });
+    };
+
+    const handleBeforeUnload = () => {
+      socket.emit("leave", { email: user.email.toLowerCase() });
+    };
+
+    document.addEventListener("visibilitychange", emitVisiblePresence);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener("visibilitychange", emitVisiblePresence);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [socket, user]);
 
   useEffect(() => {
     const syncChat = async () => {
@@ -645,6 +684,9 @@ function Chat({ user: currentUser }) {
   };
 
   const logout = () => {
+    if (socket && user) {
+      socket.emit("leave", { email: user.email.toLowerCase() });
+    }
     auth.signOut().then(() => {
       localStorage.removeItem("user");
       navigate("/");
@@ -701,12 +743,22 @@ function Chat({ user: currentUser }) {
   };
 
   const searchValue = searchTerm.trim().toLowerCase();
-  const filteredRecentChats = recentChats.filter((u) =>
-    u.toLowerCase().includes(searchValue)
-  );
-  const filteredOnlineUsers = otherOnlineUsers.filter((u) =>
-    u.toLowerCase().includes(searchValue)
-  );
+  const filteredRecentChats = recentChats.filter((u) => {
+    const normalizedEmail = normalizeEmail(u);
+    return (
+      normalizedEmail.includes(searchValue) ||
+      getDisplayName(u).includes(searchValue) ||
+      (userProfiles[u] || "").toLowerCase().includes(searchValue)
+    );
+  });
+  const filteredOnlineUsers = otherOnlineUsers.filter((u) => {
+    const normalizedEmail = normalizeEmail(u);
+    return (
+      normalizedEmail.includes(searchValue) ||
+      getDisplayName(u).includes(searchValue) ||
+      (userProfiles[u] || "").toLowerCase().includes(searchValue)
+    );
+  });
 
   if (!user) return <h2>Loading...</h2>;
 

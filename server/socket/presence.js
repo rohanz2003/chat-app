@@ -38,4 +38,24 @@ module.exports = (io, socket, users, userProfiles) => {
     // Broadcast to all clients the updated online users list
     io.emit("online-users", Object.keys(users));
   });
+
+  socket.on("leave", (data) => {
+    const userIdRaw = typeof data === 'string' ? data : data?.email;
+    if (!userIdRaw) return;
+
+    const userId = userIdRaw.toLowerCase().trim();
+    if (!users[userId]) return;
+
+    users[userId].delete(socket.id);
+    socket.leave(userId);
+
+    if (users[userId].size === 0) {
+      delete users[userId];
+      console.log(`❌ ${userId} is offline (leave event)`);
+    } else {
+      console.log(`🔁 ${userId} left one session, remaining connections: ${Array.from(users[userId]).join(", ")}`);
+    }
+
+    io.emit("online-users", Object.keys(users));
+  });
 };
