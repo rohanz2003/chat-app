@@ -25,8 +25,24 @@ function Login() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setProfilePreview(event.target.result);
-      setProfilePic(file);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 150;
+        let width = img.width, height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+        } else {
+          if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+        }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.7);
+        setProfilePreview(compressed);
+        setProfilePic(file);
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -74,7 +90,13 @@ function Login() {
           profilePic: userCredential.user.photoURL || localStorage.getItem(`profilePic_${userCredential.user.email.toLowerCase()}`) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
         };
 
-        localStorage.setItem("user", JSON.stringify(signedInUser));
+        try {
+          localStorage.setItem("user", JSON.stringify(signedInUser));
+        } catch (e) {
+          console.warn("Quota exceeded, storing minimal user data");
+          localStorage.setItem("user", JSON.stringify({ ...signedInUser, profilePic: null }));
+        }
+        
         navigate("/chat");
       }
     } catch (err) {

@@ -681,29 +681,48 @@ function Chat({ user: currentUser }) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const newPic = event.target.result;
-      const updatedUser = { ...user, profilePic: newPic };
-      
-      // 1. Update local user state
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      
-      // 2. Persist to storage with consistent lowercase key
-      localStorage.setItem(`profilePic_${user.email.toLowerCase()}`, newPic);
+      const img = new Image();
+      img.onload = () => {
+        // Compress image to 150px max dimension
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 150;
+        let width = img.width, height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+        } else {
+          if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+        }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const newPic = canvas.toDataURL("image/jpeg", 0.7);
 
-      // 3. Update the profiles map so UI components using it refresh immediately
-      setUserProfiles(prev => ({
-        ...prev,
-        [user.email.toLowerCase()]: newPic
-      }));
+        const updatedUser = { ...user, profilePic: newPic };
+        setUser(updatedUser);
 
-      // 4. Inform the server and other users via socket
-      if (socket) {
-        socket.emit("join", { email: user.email, profilePic: newPic });
-      }
+        try {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          localStorage.setItem(`profilePic_${user.email.toLowerCase()}`, newPic);
+        } catch (err) {
+          console.error("Failed to save compressed profile pic to storage:", err);
+        }
 
-      console.log("✅ Profile picture updated locally and synced via socket");
-      alert("Profile picture updated successfully!");
+        // 3. Update the profiles map immediately
+        setUserProfiles(prev => ({
+          ...prev,
+          [user.email.toLowerCase()]: newPic
+        }));
+
+        // 4. Inform the server
+        if (socket) {
+          socket.emit("join", { email: user.email, profilePic: newPic });
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
     };
     reader.readAsDataURL(file);
   };

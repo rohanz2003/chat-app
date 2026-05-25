@@ -25,7 +25,11 @@ function App() {
           uid: currentUser.uid
         };
         setUser(mappedUser);
-        localStorage.setItem("user", JSON.stringify(mappedUser));
+        try {
+          localStorage.setItem("user", JSON.stringify(mappedUser));
+        } catch (e) {
+          console.warn("Storage quota exceeded: Could not persist user session.");
+        }
       } else {
         setUser(null);
         localStorage.removeItem("user");
