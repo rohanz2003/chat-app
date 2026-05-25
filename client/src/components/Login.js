@@ -67,7 +67,11 @@ function Login() {
         
         // Save profile picture to localStorage if provided
         if (profilePic || profilePreview) {
-          localStorage.setItem(`profilePic_${email.toLowerCase()}`, profilePreview || "");
+          try {
+            localStorage.setItem(`profilePic_${email.toLowerCase()}`, profilePreview || "");
+          } catch (e) {
+            console.warn("Profile picture storage quota exceeded, skipping preview save.");
+          }
         }
         
         await sendEmailVerification(userCredential.user);
@@ -92,9 +96,18 @@ function Login() {
 
         try {
           localStorage.setItem("user", JSON.stringify(signedInUser));
-        } catch (e) {
-          console.warn("Quota exceeded, storing minimal user data");
-          localStorage.setItem("user", JSON.stringify({ ...signedInUser, profilePic: null }));
+        } catch (storageError) {
+          console.warn("Quota exceeded during login. Clearing old data to make room...");
+          // Emergency cleanup: Remove old chat histories and unread counts
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('chatHistory_') || key.startsWith('unread_') || key.startsWith('userProfiles_')) {
+              localStorage.removeItem(key);
+            }
+          });
+          // Try one more time with minimal data
+          try {
+            localStorage.setItem("user", JSON.stringify({ ...signedInUser, profilePic: null }));
+          } catch (f) { console.error("Critical storage failure"); }
         }
         
         navigate("/chat");

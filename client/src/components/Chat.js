@@ -113,7 +113,11 @@ function Chat({ user: currentUser }) {
           text: m.type === 'media' ? { ...m.text, data: null, persisted: false } : m.text
         }));
       });
-      localStorage.setItem(`chatHistory_${currentUserEmail}`, JSON.stringify(sanitized));
+      try {
+        localStorage.setItem(`chatHistory_${currentUserEmail}`, JSON.stringify(sanitized));
+      } catch (quotaError) {
+        console.warn("Chat history quota exceeded, skipping local persistence.");
+      }
     } catch (e) {
       console.error("Failed to persist chat history", e);
     }
@@ -719,10 +723,6 @@ function Chat({ user: currentUser }) {
         }
       };
       img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
     };
     reader.readAsDataURL(file);
   };

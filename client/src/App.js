@@ -27,7 +27,11 @@ function App() {
         setUser(mappedUser);
         try {
           localStorage.setItem("user", JSON.stringify(mappedUser));
-        } catch (e) {
+        } catch (storageError) {
+          // If App.js fails to persist, clear some space
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('chatHistory_')) localStorage.removeItem(key);
+          });
           console.warn("Storage quota exceeded: Could not persist user session.");
         }
       } else {
