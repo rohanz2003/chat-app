@@ -88,26 +88,45 @@ function Login() {
           return;
         }
 
+        const storedProfilePic = localStorage.getItem(`profilePic_${userCredential.user.email.toLowerCase()}`);
+        const profilePic = userCredential.user.photoURL || storedProfilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80";
         const signedInUser = {
           email: userCredential.user.email,
           uid: userCredential.user.uid,
-          profilePic: userCredential.user.photoURL || localStorage.getItem(`profilePic_${userCredential.user.email.toLowerCase()}`) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80"
+          profilePic
         };
+        const storedUserPayload = JSON.stringify({
+          email: signedInUser.email,
+          uid: signedInUser.uid
+        });
+
+        if (profilePic && !userCredential.user.photoURL) {
+          try {
+            localStorage.setItem(`profilePic_${signedInUser.email.toLowerCase()}`, profilePic);
+          } catch (e) {
+            console.warn("Profile picture storage quota exceeded, preserving login session without persisted profile pic.");
+          }
+        }
 
         try {
-          localStorage.setItem("user", JSON.stringify(signedInUser));
+          localStorage.setItem("user", storedUserPayload);
         } catch (storageError) {
-          console.warn("Quota exceeded during login. Clearing old data to make room...");
-          // Emergency cleanup: Remove old chat histories and unread counts
+          console.warn("Quota exceeded during login. Clearing old storage keys to make room...");
           Object.keys(localStorage).forEach(key => {
             if (key.startsWith('chatHistory_') || key.startsWith('unread_') || key.startsWith('userProfiles_')) {
               localStorage.removeItem(key);
             }
           });
-          // Try one more time with minimal data
           try {
-            localStorage.setItem("user", JSON.stringify({ ...signedInUser, profilePic: null }));
-          } catch (f) { console.error("Critical storage failure"); }
+            localStorage.setItem("user", storedUserPayload);
+          } catch (f) {
+            console.error("Critical storage failure, falling back to sessionStorage");
+            try {
+              sessionStorage.setItem("user", storedUserPayload);
+            } catch (sessionError) {
+              console.error("Session storage also failed", sessionError);
+            }
+          }
         }
         
         navigate("/chat");

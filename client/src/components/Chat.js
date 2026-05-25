@@ -101,6 +101,16 @@ function Chat({ user: currentUser }) {
   const normalizeEmail = (email) => (email || "").toLowerCase().trim();
   const getDisplayName = (email) => (email || "").split("@")[0];
 
+  const safeLocalStorageSet = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (err) {
+      console.warn(`Failed to persist ${key} to localStorage`, err);
+      return false;
+    }
+  };
+
   // Helper to safely persist limited chat history without large media blobs or bloat
   const persistHistory = (historyObj, currentUserEmail) => {
     if (!currentUserEmail) return;
@@ -135,7 +145,10 @@ function Chat({ user: currentUser }) {
       uid: currentUser.uid
     };
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    safeLocalStorageSet("user", JSON.stringify({
+      email: userData.email,
+      uid: userData.uid
+    }));
 
     if (userData.profilePic) {
       setUserProfiles((prev) => ({
@@ -146,8 +159,7 @@ function Chat({ user: currentUser }) {
 
     const savedPicFromReg = localStorage.getItem(`profilePic_${userData.email.toLowerCase()}`);
     if (savedPicFromReg && !userData.profilePic) {
-      userData.profilePic = savedPicFromReg;
-      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(prev => ({ ...prev, profilePic: savedPicFromReg }));
     }
   }, [currentUser, navigate]);
 
@@ -704,12 +716,11 @@ function Chat({ user: currentUser }) {
         const updatedUser = { ...user, profilePic: newPic };
         setUser(updatedUser);
 
-        try {
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          localStorage.setItem(`profilePic_${user.email.toLowerCase()}`, newPic);
-        } catch (err) {
-          console.error("Failed to save compressed profile pic to storage:", err);
-        }
+        safeLocalStorageSet("user", JSON.stringify({
+          email: updatedUser.email,
+          uid: updatedUser.uid
+        }));
+        safeLocalStorageSet(`profilePic_${user.email.toLowerCase()}`, newPic);
 
         // 3. Update the profiles map immediately
         setUserProfiles(prev => ({

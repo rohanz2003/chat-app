@@ -16,6 +16,16 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const safeLocalStorageSet = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (err) {
+      console.warn(`Failed to persist ${key} to localStorage`, err);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -25,14 +35,25 @@ function App() {
           uid: currentUser.uid
         };
         setUser(mappedUser);
-        try {
-          localStorage.setItem("user", JSON.stringify(mappedUser));
-        } catch (storageError) {
-          // If App.js fails to persist, clear some space
+        const storedUserPayload = JSON.stringify({
+          email: mappedUser.email,
+          uid: mappedUser.uid
+        });
+
+        if (!safeLocalStorageSet("user", storedUserPayload)) {
           Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('chatHistory_')) localStorage.removeItem(key);
+            if (key.startsWith('chatHistory_') || key.startsWith('unread_') || key.startsWith('userProfiles_')) {
+              localStorage.removeItem(key);
+            }
           });
-          console.warn("Storage quota exceeded: Could not persist user session.");
+          if (!safeLocalStorageSet("user", storedUserPayload)) {
+            console.warn("Storage quota exceeded: falling back to sessionStorage for user session.");
+            try {
+              sessionStorage.setItem("user", storedUserPayload);
+            } catch (sessionError) {
+              console.error("Session storage also failed", sessionError);
+            }
+          }
         }
       } else {
         setUser(null);
