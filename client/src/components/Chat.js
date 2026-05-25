@@ -446,7 +446,7 @@ function Chat({ user: currentUser }) {
       typingTimeoutRef.current = null;
     }
     if (user && selectedUser && socket) {
-      socket.emit("stop-typing", { from: user.email, to: selectedUser });
+      socket.emit("stop-typing", { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) });
     }
   };
 
@@ -469,7 +469,7 @@ function Chat({ user: currentUser }) {
       return;
     }
 
-    socket.emit("typing", { from: user.email, to: selectedUser });
+    socket.emit("typing", { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);

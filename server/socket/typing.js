@@ -1,16 +1,17 @@
 module.exports = (io, socket, users) => {
+  const normalizeEmail = (email) => (email || "").toLowerCase().trim();
+
   socket.on("typing", ({ from, to }) => {
-    const target = to?.toLowerCase().trim();
-    if (users[target]) {
-      // Emit to the room named after the email address
-      io.to(target).emit("typing", { from });
-    }
+    const normalizedFrom = normalizeEmail(from);
+    const target = normalizeEmail(to);
+    if (!normalizedFrom || !target) return;
+    io.to(target).emit("typing", { from: normalizedFrom });
   });
 
   socket.on("stop-typing", ({ from, to }) => {
-    const target = to?.toLowerCase().trim();
-    if (users[target]) {
-      io.to(target).emit("stop-typing", { from });
-    }
+    const normalizedFrom = normalizeEmail(from);
+    const target = normalizeEmail(to);
+    if (!normalizedFrom || !target) return;
+    io.to(target).emit("stop-typing", { from: normalizedFrom });
   });
 };
