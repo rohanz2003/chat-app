@@ -227,9 +227,13 @@ function Chat({ user: currentUser }) {
       const activeChat = selectedUserRef.current;
       const normalizedFrom = normalizeEmail(from);
       const normalizedActiveChat = normalizeEmail(activeChat);
+      console.log(`📨 Typing listener triggered: from=${normalizedFrom}, activeChat=${normalizedActiveChat}, match=${normalizedFrom === normalizedActiveChat}`);
+      
       if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
-        console.log(`⌨️ Typing from ${from}`);
+        console.log(`✅ Typing indicator set for ${from}`);
         setTypingUser(from);
+      } else {
+        console.warn(`❌ Typing mismatch or empty: normalizedFrom=[${normalizedFrom}], normalizedActiveChat=[${normalizedActiveChat}]`);
       }
     });
 
@@ -237,8 +241,10 @@ function Chat({ user: currentUser }) {
       const activeChat = selectedUserRef.current;
       const normalizedFrom = normalizeEmail(from);
       const normalizedActiveChat = normalizeEmail(activeChat);
+      console.log(`📨 Stop-typing listener triggered: from=${normalizedFrom}, activeChat=${normalizedActiveChat}, match=${normalizedFrom === normalizedActiveChat}`);
+      
       if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
-        console.log(`⌨️ Stopped typing from ${from}`);
+        console.log(`✅ Typing indicator cleared`);
         setTypingUser(null);
       }
     });
@@ -451,8 +457,10 @@ function Chat({ user: currentUser }) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
-    if (user && selectedUser && socket) {
-      socket.emit("stop-typing", { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) });
+    if (user && selectedUser && socket && socket.connected) {
+      const stopPayload = { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) };
+      console.log("📤 Emitting stop-typing:", stopPayload);
+      socket.emit("stop-typing", stopPayload);
     }
   };
 
@@ -469,13 +477,24 @@ function Chat({ user: currentUser }) {
     const val = e.target.value;
     setMessage(val);
 
-    if (!user || !selectedUser || !socket) return;
+    if (!user || !selectedUser || !socket) {
+      console.warn("❌ Typing aborted: missing user, selectedUser, or socket");
+      return;
+    }
+
+    if (!socket.connected) {
+      console.warn("❌ Socket not connected, typing not sent");
+      return;
+    }
+
     if (val.trim() === "") {
       stopTyping();
       return;
     }
 
-    socket.emit("typing", { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) });
+    const typingPayload = { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) };
+    console.log("📤 Emitting typing:", typingPayload);
+    socket.emit("typing", typingPayload);
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
