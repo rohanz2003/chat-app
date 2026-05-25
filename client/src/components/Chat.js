@@ -225,14 +225,20 @@ function Chat({ user: currentUser }) {
 
     socket.on("typing", ({ from }) => {
       const activeChat = selectedUserRef.current;
-      if (from && activeChat && from.toLowerCase() === activeChat.toLowerCase()) {
+      const normalizedFrom = normalizeEmail(from);
+      const normalizedActiveChat = normalizeEmail(activeChat);
+      if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
+        console.log(`⌨️ Typing from ${from}`);
         setTypingUser(from);
       }
     });
 
     socket.on("stop-typing", ({ from }) => {
       const activeChat = selectedUserRef.current;
-      if (!from || (activeChat && from.toLowerCase() === activeChat.toLowerCase())) {
+      const normalizedFrom = normalizeEmail(from);
+      const normalizedActiveChat = normalizeEmail(activeChat);
+      if (normalizedFrom && normalizedActiveChat && normalizedFrom === normalizedActiveChat) {
+        console.log(`⌨️ Stopped typing from ${from}`);
         setTypingUser(null);
       }
     });
