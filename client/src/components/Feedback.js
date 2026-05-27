@@ -70,7 +70,7 @@ const Feedback = () => {
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/feedback/send", {
+      const response = await fetch("http://127.0.0.1:5000/api/feedback/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,8 +100,8 @@ const Feedback = () => {
         setErrorMessage(data.message || "Failed to send feedback. Please try again.");
       }
     } catch (error) {
-      console.error("Error submitting feedback:", error);
-      setErrorMessage("Error sending feedback. Please try again later.");
+      console.error("Feedback submission error:", error);
+      setErrorMessage(`Connection Error: ${error.message}. Please check if the backend server is running on port 5000.`);
     } finally {
       setLoading(false);
     }
