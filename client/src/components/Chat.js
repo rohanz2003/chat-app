@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import EmojiPicker from "emoji-picker-react";
 import {
   Search,
   MessageCircle,
@@ -48,6 +49,8 @@ function Chat({ user: currentUser }) {
   const [isZoomMinimized, setIsZoomMinimized] = useState(false); // Track zoom bubble state
   const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
   const [replyTo, setReplyTo] = useState(null); // Message being replied to
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -82,6 +85,19 @@ function Chat({ user: currentUser }) {
     window.addEventListener("click", handleGlobalClick);
     return () => window.removeEventListener("click", handleGlobalClick);
   }, []);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker]);
 
   const formatDay = (timestamp) => {
     if (!timestamp) return "";
@@ -1110,6 +1126,14 @@ function Chat({ user: currentUser }) {
 
         {!isChatMinimized && (
         <div className="chat-panel-footer">
+          {showEmojiPicker && (
+            <div ref={emojiPickerRef} style={{ position: 'absolute', bottom: '100%', left: '0', zIndex: 1000, marginBottom: '10px' }}>
+              <EmojiPicker 
+                onEmojiClick={(emojiData) => setMessage(prev => prev + emojiData.emoji)}
+                theme={isDarkMode ? "dark" : "light"}
+              />
+            </div>
+          )}
           {replyTo && (
             <div className="reply-preview">
               <div className="reply-preview-content">
@@ -1119,7 +1143,11 @@ function Chat({ user: currentUser }) {
               <button className="close-reply" onClick={() => setReplyTo(null)}><X size={14} /></button>
             </div>
           )}
-          <button className="secondary-icon-btn" title="Emoji">
+          <button 
+            className="secondary-icon-btn" 
+            title="Emoji"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
             <Smile size={18} />
           </button>
           <button className="secondary-icon-btn" title="Attach file">
