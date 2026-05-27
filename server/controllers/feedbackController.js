@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER || "zenderohan1220@gmail.com",
+    user: process.env.EMAIL_USER || "zenderohan2012@gmail.com",
     pass: process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD,
   },
 });
@@ -33,8 +33,8 @@ const sendFeedback = async (req, res) => {
 
     // Email to admin (you)
     const adminMailOptions = {
-      from: process.env.EMAIL_USER || "zenderohan1220@gmail.com",
-      to: "zenderohan1220@gmail.com",
+      from: process.env.EMAIL_USER || "zenderohan2012@gmail.com",
+      to: "zenderohan2012@gmail.com",
       subject: `New Feedback from ${name} - Connect It`,
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #f9fafb; padding: 20px;">
@@ -73,7 +73,7 @@ const sendFeedback = async (req, res) => {
 
     // Email to user (confirmation)
     const userMailOptions = {
-      from: process.env.EMAIL_USER || "zenderohan1220@gmail.com",
+      from: process.env.EMAIL_USER || "zenderohan2012@gmail.com",
       to: email,
       subject: "Thank You for Your Feedback - Connect It",
       html: `

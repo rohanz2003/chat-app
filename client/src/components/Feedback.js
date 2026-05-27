@@ -78,7 +78,12 @@ const Feedback = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { message: "Server returned an invalid response" };
+      }
 
       if (response.ok) {
         setSuccessMessage("Thank you! Your feedback has been sent successfully.");
