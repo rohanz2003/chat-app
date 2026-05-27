@@ -70,7 +70,8 @@ const Feedback = () => {
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/feedback/send", {
+      const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+      const response = await fetch(`${API_BASE_URL}/api/feedback/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +102,7 @@ const Feedback = () => {
       }
     } catch (error) {
       console.error("Feedback submission error:", error);
-      setErrorMessage(`Connection Error: ${error.message}. Please check if the backend server is running on port 5000.`);
+      setErrorMessage(`Connection Error: ${error.message}. Please ensure the backend server is reachable.`);
     } finally {
       setLoading(false);
     }
