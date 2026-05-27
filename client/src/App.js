@@ -5,6 +5,7 @@ import { auth } from "./firebase";
 import Login from "./components/Login";
 import Chat from "./components/Chat";
 import Landing from "./components/Landing";
+import Feedback from "./components/Feedback";
 
 // ✅ Protected Route
 const PrivateRoute = ({ children, loading, user }) => {
@@ -78,6 +79,8 @@ function App() {
           </PrivateRoute>
         }
       />
+
+      <Route path="/feedback" element={<Feedback />} />
     </Routes>
   );
 }

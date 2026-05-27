@@ -7,6 +7,7 @@ require("dotenv").config();
 // ROUTES
 const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 
 // SOCKET
 const initSocket = require("./socket/socket");
@@ -24,6 +25,7 @@ app.use(express.json());
 // 📡 API ROUTES
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 // 🏠 ROOT ROUTE
 app.get("/", (req, res) => {

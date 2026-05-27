@@ -750,9 +750,9 @@ function Chat({ user: currentUser }) {
     if (socket && user) {
       socket.emit("leave", { email: user.email.toLowerCase() });
     }
+    navigate("/feedback");
     auth.signOut().then(() => {
       localStorage.removeItem("user");
-      navigate("/");
     });
   };
 
