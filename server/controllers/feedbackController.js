@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const Feedback = require("../models/Feedback");
 
 // Configure the transporter - Using Gmail or any email service
 const transporter = nodemailer.createTransport({
@@ -9,6 +10,13 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER || "zenderohan2012@gmail.com",
     pass: process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD,
   },
+});
+
+// Verify transporter configuration early to surface auth/connectivity errors
+transporter.verify().then(() => {
+  console.log("Email transporter is ready ✅");
+}).catch((err) => {
+  console.warn("Email transporter verification failed ⚠️", err && err.message ? err.message : err);
 });
 
 
@@ -117,15 +125,43 @@ const sendFeedback = async (req, res) => {
       `,
     };
 
-    // Send both emails in parallel
-    await Promise.all([
-      transporter.sendMail(adminMailOptions),
-      transporter.sendMail(userMailOptions),
-    ]);
+    // Save feedback to DB (best-effort) and send emails
+    try {
+      await Feedback.create({ name, email, message, rating });
+    } catch (dbErr) {
+      console.warn("⚠️ Could not save feedback to DB:", dbErr.message);
+    }
 
+    // Send emails individually so we can surface which (if any) failed
+    let adminSent = false;
+    let userSent = false;
+
+    try {
+      await transporter.sendMail(adminMailOptions);
+      adminSent = true;
+    } catch (mailErr) {
+      console.error("Failed to send admin feedback email:", mailErr && mailErr.message ? mailErr.message : mailErr);
+    }
+
+    try {
+      await transporter.sendMail(userMailOptions);
+      userSent = true;
+    } catch (mailErr) {
+      console.error("Failed to send user confirmation email:", mailErr && mailErr.message ? mailErr.message : mailErr);
+    }
+
+    if (!adminSent && !userSent) {
+      // both failed
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send feedback emails. Please check server email configuration.",
+      });
+    }
+
+    // At least one email was sent
     return res.status(200).json({
       success: true,
-      message: "Feedback sent successfully!",
+      message: "Feedback received." + (adminSent && userSent ? " Emails sent successfully." : adminSent ? " Admin notified; user email failed." : " User notified; admin email failed."),
     });
   } catch (error) {
     console.error("Error sending feedback email:", error);
