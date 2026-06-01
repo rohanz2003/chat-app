@@ -33,7 +33,13 @@ app.get("/", (req, res) => {
 });
 
 // 🔌 MONGODB CONNECTION
-mongoose.connect(process.env.MONGO_URI)
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error("Missing MONGO_URI. Set environment variable MONGO_URI to your MongoDB connection string.");
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+
+mongoose.connect(mongoUri)
   .then(() => console.log("MongoDB Connected ✅"))
   .catch((err) => console.log("MongoDB Error ❌", err));
 
