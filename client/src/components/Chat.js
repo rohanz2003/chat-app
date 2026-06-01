@@ -532,7 +532,7 @@ function Chat({ user: currentUser }) {
         socket.emit("stop-typing", stopPayload);
       }
     }
-  }, [selectedUser]);
+  }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
     const val = e.target.value;
