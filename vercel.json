@@ -1,15 +1,13 @@
 {
-  "buildCommand": "npm install --prefix client && npm run build --prefix client",
-  "outputDirectory": "client/build",
-  "framework": "create-react-app",
+  "version": 2,
   "env": {
-    "CI": "false",
-    "NODE_OPTIONS": "--no-deprecation"
+    "CI": "false"
   },
-  "functions": {
-    "api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  }
+  "buildCommand": "cd client && npm install && npm run build",
+  "outputDirectory": "client/build"
 }
+
+
+
+
+
