@@ -498,20 +498,41 @@ function Chat({ user: currentUser }) {
       typingTimeoutRef.current = null;
     }
     if (user && selectedUser && socket && socket.connected) {
-      const stopPayload = { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) };
+      const normalizedUser = normalizeEmail(user.email);
+      const normalizedSelected = normalizeEmail(selectedUser);
+      
+      if (!normalizedUser || !normalizedSelected) {
+        console.warn("❌ Stop-typing aborted: invalid email normalization");
+        return;
+      }
+      
+      const stopPayload = { from: normalizedUser, to: normalizedSelected };
       console.log("📤 Emitting stop-typing:", stopPayload);
       socket.emit("stop-typing", stopPayload);
+    } else {
+      console.debug("⚠️ Stop-typing not sent: missing user, selectedUser, socket, or not connected");
     }
   };
 
   useEffect(() => {
     // When switching active chat, clear typing indicator from the previous partner.
+    console.log(`🔄 Chat switched to: ${selectedUser || "none"} - clearing typing indicator`);
     setTypingUser(null);
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
-  }, [selectedUser]);
+    // Send stop-typing to previous chat if user was typing
+    if (user && socket && socket.connected) {
+      // This helps clean up if the user switches away while typing
+      if (selectedUserRef.current) {
+        const prevUser = selectedUserRef.current;
+        const stopPayload = { from: normalizeEmail(user.email), to: normalizeEmail(prevUser) };
+        console.log("📤 Emitting stop-typing to previous chat:", stopPayload);
+        socket.emit("stop-typing", stopPayload);
+      }
+    }
+  }, [selectedUser, user, socket]);
 
   const handleTyping = (e) => {
     const val = e.target.value;
@@ -527,12 +548,20 @@ function Chat({ user: currentUser }) {
       return;
     }
 
+    const normalizedUser = normalizeEmail(user.email);
+    const normalizedSelected = normalizeEmail(selectedUser);
+
+    if (!normalizedUser || !normalizedSelected) {
+      console.warn("❌ Typing aborted: invalid email normalization", { user: user.email, selected: selectedUser });
+      return;
+    }
+
     if (val.trim() === "") {
       stopTyping();
       return;
     }
 
-    const typingPayload = { from: normalizeEmail(user.email), to: normalizeEmail(selectedUser) };
+    const typingPayload = { from: normalizedUser, to: normalizedSelected };
     console.log("📤 Emitting typing:", typingPayload);
     socket.emit("typing", typingPayload);
 
@@ -541,8 +570,9 @@ function Chat({ user: currentUser }) {
     }
 
     typingTimeoutRef.current = setTimeout(() => {
+      console.log("⏱️ Typing timeout reached - auto stopping typing");
       stopTyping();
-    }, 3000); // Increased timeout for better UX
+    }, 3000); // Timeout for better UX
   };
 
   const sendMessage = () => {

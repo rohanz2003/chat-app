@@ -8,6 +8,7 @@ require("dotenv").config();
 const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 // SOCKET
 const initSocket = require("./socket/socket");
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/admin", adminRoutes);
 
 // 🏠 ROOT ROUTE
 app.get("/", (req, res) => {
@@ -33,7 +35,13 @@ app.get("/", (req, res) => {
 });
 
 // 🔌 MONGODB CONNECTION
-mongoose.connect(process.env.MONGO_URI)
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error("Missing MONGO_URI. Set environment variable MONGO_URI to your MongoDB connection string.");
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+
+mongoose.connect(mongoUri)
   .then(() => console.log("MongoDB Connected ✅"))
   .catch((err) => console.log("MongoDB Error ❌", err));
 

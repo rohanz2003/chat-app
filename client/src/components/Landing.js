@@ -157,6 +157,9 @@ const Landing = () => {
           <Link to="/login" className="cta-button">
             Get Started Now
           </Link>
+          <Link to="/admin" className="admin-link-hidden" title="Admin Dashboard">
+            🔐
+          </Link>
         </motion.div>
       </section>
 
