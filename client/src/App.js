@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import Chat from "./components/Chat";
 import Landing from "./components/Landing";
 import Feedback from "./components/Feedback";
+import Admin from "./components/Admin";
 
 // ✅ Protected Route
 const PrivateRoute = ({ children, loading, user }) => {
@@ -81,6 +82,8 @@ function App() {
       />
 
       <Route path="/feedback" element={<Feedback />} />
+      
+      <Route path="/admin" element={<Admin />} />
     </Routes>
   );
 }
